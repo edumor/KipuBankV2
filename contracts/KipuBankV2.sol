@@ -10,71 +10,71 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interf
 
 /**
  * @title KipuBankV2
- * @author Eduardo Moreno
- * @notice Advanced banking contract with multi-token support and Chainlink price feeds
- * @dev Implements role-based access control, single state reads, and short error strings
- * @custom:security Follows CEI pattern, uses ReentrancyGuard, single storage access per function
- * @custom:version 2.0.0
+ * @author Eduardo Moreno - Módulo 3 Ethereum Developer Program
+ * @notice Multi-token banking system with Chainlink price feeds and role-based access control
+ * @dev Implements Module 3 concepts: AccessControl, SafeERC20, multi-token support, Chainlink oracles
+ * @custom:security CEI pattern, ReentrancyGuard, single storage access optimization
+ * @custom:module Based on Module 3 - DonationsV2 pattern with banking functionality
  */
 contract KipuBankV2 is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    // ============ CONSTANTS ============
+    // ============ CONSTANTS (Module 3 Pattern) ============
     
-    /// @notice Role identifier for main admin functions
+    /// @notice Admin role for token management and configuration
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     
-    /// @notice Role identifier for emergency pause functions
+    /// @notice Emergency role for pause functionality
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
     
-    /// @notice Native ETH token representation
+    /// @notice Native ETH representation as taught in Module 3
     address public constant NATIVE_TOKEN = address(0);
     
-    /// @notice Minimum deposit amount in USD (1 USD with 6 decimals)
+    /// @notice Minimum deposit: 1 USD normalized to 6 decimals (USDC standard)
     uint256 public constant MIN_DEPOSIT_USD = 1e6;
 
-    // ============ IMMUTABLE VARIABLES ============
+    // ============ IMMUTABLE STATE (Module 3 Best Practice) ============
     
-    /// @notice Maximum withdrawal limit per transaction in USD (6 decimals)
+    /// @notice Per-transaction withdrawal limit in USD (6 decimals)
     uint256 public immutable WITHDRAWAL_LIMIT_USD;
     
-    /// @notice Total bank capacity limit in USD (6 decimals)
+    /// @notice Total bank capacity in USD (6 decimals) 
     uint256 public immutable BANK_CAP_USD;
     
-    /// @notice Chainlink ETH/USD price feed aggregator
+    /// @notice Chainlink ETH/USD price feed (as taught in Module 3)
     AggregatorV3Interface public immutable ethUsdPriceFeed;
 
-    // ============ STATE VARIABLES ============
+    // ============ STATE VARIABLES (Module 3 Architecture) ============
     
-    /// @notice Total value deposited in USD (6 decimals)
+    /// @notice Total deposited value normalized to USD (6 decimals)
     uint256 public totalDepositedUSD;
     
-    /// @notice Total number of deposits made
+    /// @notice Counter for total deposits (gas-efficient tracking)
     uint256 public totalDeposits;
     
-    /// @notice Total number of withdrawals made
+    /// @notice Counter for total withdrawals (gas-efficient tracking)
     uint256 public totalWithdrawals;
     
-    /// @notice Emergency pause state
+    /// @notice Emergency pause flag (security feature from Module 3)
     bool public emergencyPaused;
     
-    /// @notice Mapping of supported tokens to their information
+    /// @notice Token registry with price feed integration (Module 3 pattern)
     mapping(address => TokenInfo) public supportedTokens;
     
-    /// @notice Nested mapping: user => token => balance (in USD with 6 decimals)
+    /// @notice User balances: user => token => USD amount (Module 3 normalization)
     mapping(address => mapping(address => uint256)) public userBalances;
     
-    /// @notice User total balance in USD (6 decimals)
+    /// @notice User totals in USD for efficient queries (Module 3 optimization)
     mapping(address => uint256) public userTotalBalanceUSD;
 
-    // ============ STRUCTS ============
+    // ============ STRUCTS (Module 3 Data Architecture) ============
     
-    /// @notice Token information structure
+    /// @notice Token metadata and price feed configuration (Module 3 pattern)
     struct TokenInfo {
-        bool isSupported;
-        uint8 decimals;
-        AggregatorV3Interface priceFeed;
-        string symbol;
+        bool isSupported;                   // Token whitelist status
+        uint8 decimals;                     // Token decimal places
+        AggregatorV3Interface priceFeed;    // Chainlink price oracle
+        string symbol;                      // Human-readable identifier
     }
 
     // ============ EVENTS ============
@@ -143,12 +143,13 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         _;
     }
 
-    // ============ CONSTRUCTOR ============
+    // ============ CONSTRUCTOR (Module 3 Pattern) ============
     
-    /// @notice Initializes KipuBankV2 with specified parameters
-    /// @param _withdrawalLimitUSD Maximum withdrawal limit per transaction in USD (6 decimals)
-    /// @param _bankCapUSD Total bank capacity limit in USD (6 decimals) 
-    /// @param _ethUsdPriceFeed Chainlink ETH/USD price feed address
+    /// @notice Initializes KipuBankV2 following Module 3 architecture
+    /// @param _withdrawalLimitUSD Per-transaction limit in USD (6 decimals)
+    /// @param _bankCapUSD Total capacity in USD (6 decimals) 
+    /// @param _ethUsdPriceFeed Chainlink ETH/USD aggregator address
+    /// @dev Sets up AccessControl roles and registers native ETH with address(0)
     constructor(
         uint256 _withdrawalLimitUSD,
         uint256 _bankCapUSD,
@@ -158,12 +159,12 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         BANK_CAP_USD = _bankCapUSD;
         ethUsdPriceFeed = AggregatorV3Interface(_ethUsdPriceFeed);
         
-        // Setup roles
+        // AccessControl setup (Module 3 pattern)
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(EMERGENCY_ROLE, msg.sender);
         
-        // Add native ETH support
+        // Register native ETH as address(0) (Module 3 standard)
         supportedTokens[NATIVE_TOKEN] = TokenInfo({
             isSupported: true,
             decimals: 18,
@@ -174,9 +175,10 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         emit TokenAdded(NATIVE_TOKEN, "ETH", 18);
     }
 
-    // ============ EXTERNAL FUNCTIONS ============
+    // ============ DEPOSIT FUNCTIONS (Module 3 Multi-token Pattern) ============
     
-    /// @notice Deposits native ETH into the bank
+    /// @notice Deposit native ETH using address(0) representation
+    /// @dev Follows Module 3 pattern for native token handling
     function depositETH() 
         external 
         payable 
@@ -187,9 +189,10 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         _deposit(NATIVE_TOKEN, msg.value);
     }
     
-    /// @notice Deposits ERC20 tokens into the bank
-    /// @param token Address of the ERC20 token
-    /// @param amount Amount of tokens to deposit
+    /// @notice Deposit ERC20 tokens with SafeERC20 protection
+    /// @param token ERC20 contract address
+    /// @param amount Token amount to deposit
+    /// @dev Uses SafeERC20.safeTransferFrom as taught in Module 3
     function depositToken(address token, uint256 amount) 
         external 
         whenNotPaused 
@@ -199,12 +202,16 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
     {
         if (token == NATIVE_TOKEN) revert TokenNotSupported();
         
+        // Module 3 pattern: SafeERC20 for secure transfers
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         _deposit(token, amount);
     }
     
-    /// @notice Withdraws native ETH from the bank
-    /// @param amount Amount to withdraw in ETH
+    // ============ WITHDRAWAL FUNCTIONS (Module 3 Multi-token Pattern) ============
+    
+    /// @notice Withdraw native ETH using address(0) representation
+    /// @param amount ETH amount to withdraw
+    /// @dev Follows Module 3 pattern for native token handling
     function withdrawETH(uint256 amount) 
         external 
         whenNotPaused 
@@ -214,9 +221,10 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         _withdraw(NATIVE_TOKEN, amount);
     }
     
-    /// @notice Withdraws ERC20 tokens from the bank
-    /// @param token Address of the ERC20 token
-    /// @param amount Amount of tokens to withdraw
+    /// @notice Withdraw ERC20 tokens with SafeERC20 protection
+    /// @param token ERC20 contract address
+    /// @param amount Token amount to withdraw
+    /// @dev Uses SafeERC20.safeTransfer as taught in Module 3
     function withdrawToken(address token, uint256 amount) 
         external 
         whenNotPaused 
@@ -245,27 +253,34 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         return userTotalBalanceUSD[user];
     }
     
-    /// @notice Gets current ETH price in USD from Chainlink feed
-    /// @return price ETH price in USD with 8 decimals
+    // ============ CHAINLINK PRICE FEEDS (Module 3 Integration) ============
+    
+    /// @notice Get ETH price from Chainlink oracle with staleness check
+    /// @return price ETH price in USD (8 decimals from Chainlink)
+    /// @dev Implements Module 3 pattern for Chainlink data validation
     function getETHPrice() public view returns (uint256 price) {
         (, int256 answer, , uint256 updatedAt,) = ethUsdPriceFeed.latestRoundData();
         
+        // Module 3 validation: positive price and freshness check
         if (answer <= 0) revert BadPriceFeed();
-        if (block.timestamp - updatedAt > 3600) revert StalePrice();
+        if (block.timestamp - updatedAt > 3600) revert StalePrice(); // 1 hour staleness
         
         return uint256(answer);
     }
     
-    /// @notice Gets token price in USD from Chainlink feed
-    /// @param token Token address
-    /// @return price Token price in USD with 8 decimals
+    /// @notice Get token price from Chainlink with validation
+    /// @param token Token address (use address(0) for ETH)
+    /// @return price Token price in USD (8 decimals from Chainlink)
+    /// @dev Module 3 pattern: unified price feed access for all tokens
     function getTokenPrice(address token) public view returns (uint256 price) {
         if (!supportedTokens[token].isSupported) revert TokenNotSupported();
         
+        // Handle native ETH (address(0)) as per Module 3
         if (token == NATIVE_TOKEN) {
             return getETHPrice();
         }
         
+        // ERC20 token price feed
         AggregatorV3Interface priceFeed = supportedTokens[token].priceFeed;
         (, int256 answer, , uint256 updatedAt,) = priceFeed.latestRoundData();
         
@@ -275,15 +290,17 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         return uint256(answer);
     }
     
-    /// @notice Converts token amount to USD value with proper decimal handling
-    /// @param token Token address
-    /// @param amount Token amount
-    /// @return usdValue Value in USD with 6 decimals
+    /// @notice Convert token amount to USD with decimal normalization
+    /// @param token Token address (address(0) for ETH)
+    /// @param amount Token amount in native decimals
+    /// @return usdValue Normalized value in USD (6 decimals like USDC)
+    /// @dev Module 3 pattern: normalize all values to 6 decimal USD representation
     function convertToUSD(address token, uint256 amount) public view returns (uint256 usdValue) {
-        uint256 tokenPrice = getTokenPrice(token);
+        uint256 tokenPrice = getTokenPrice(token);        // 8 decimals from Chainlink
         uint8 tokenDecimals = supportedTokens[token].decimals;
         
-        // Convert: (amount * price) / (10^tokenDecimals * 10^8 / 10^6)
+        // Module 3 normalization formula:
+        // (amount * price) / (10^tokenDecimals * 10^8 / 10^6)
         // Simplified: (amount * price) / (10^(tokenDecimals + 2))
         return (amount * tokenPrice) / (10 ** (tokenDecimals + 2));
     }
@@ -359,18 +376,19 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         emit EmergencyPauseToggled(false);
     }
 
-    // ============ INTERNAL FUNCTIONS ============
+    // ============ INTERNAL LOGIC (Module 3 CEI Pattern) ============
     
-    /// @notice Internal deposit logic with single state access pattern
-    /// @param token Token address
-    /// @param amount Token amount
+    /// @notice Internal deposit with CEI pattern and single state access
+    /// @param token Token address (address(0) for ETH) 
+    /// @param amount Token amount in native decimals
+    /// @dev Implements Module 3 patterns: CEI, single storage reads, USD normalization
     function _deposit(address token, uint256 amount) internal {
         uint256 usdValue = convertToUSD(token, amount);
         
-        // Checks
+        // CHECKS (Module 3 CEI Pattern)
         if (usdValue < MIN_DEPOSIT_USD) revert ZeroAmount();
         
-        // Single read of state variables
+        // Single state reads (Module 3 gas optimization)
         uint256 currentTotalDeposited = totalDepositedUSD;
         uint256 currentUserBalance = userBalances[msg.sender][token];
         uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
@@ -378,27 +396,28 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         
         if (currentTotalDeposited + usdValue > BANK_CAP_USD) revert CapExceeded();
         
-        // Effects - Single write to each state variable
+        // EFFECTS (Module 3 CEI Pattern - single writes)
         uint256 newUserBalance = currentUserBalance + usdValue;
         userBalances[msg.sender][token] = newUserBalance;
         userTotalBalanceUSD[msg.sender] = currentUserTotal + usdValue;
         totalDepositedUSD = currentTotalDeposited + usdValue;
         totalDeposits = currentTotalDeposits + 1;
         
-        // Interactions
+        // INTERACTIONS (Module 3 CEI Pattern)
         emit Deposit(msg.sender, token, amount, usdValue, newUserBalance);
     }
     
-    /// @notice Internal withdrawal logic with single state access pattern
-    /// @param token Token address
-    /// @param amount Token amount to withdraw
+    /// @notice Internal withdrawal with CEI pattern and single state access
+    /// @param token Token address (address(0) for ETH)
+    /// @param amount Token amount to withdraw in native decimals
+    /// @dev Implements Module 3 patterns: CEI, single storage reads, safe transfers
     function _withdraw(address token, uint256 amount) internal {
         uint256 usdValue = convertToUSD(token, amount);
         
-        // Checks
+        // CHECKS (Module 3 CEI Pattern)
         if (usdValue > WITHDRAWAL_LIMIT_USD) revert LimitExceeded();
         
-        // Single read of state variables
+        // Single state reads (Module 3 gas optimization)
         uint256 currentUserBalance = userBalances[msg.sender][token];
         uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
         uint256 currentTotalDeposited = totalDepositedUSD;
@@ -406,14 +425,14 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         
         if (usdValue > currentUserBalance) revert LowBalance();
         
-        // Effects - Single write to each state variable
+        // EFFECTS (Module 3 CEI Pattern - single writes)
         uint256 newUserBalance = currentUserBalance - usdValue;
         userBalances[msg.sender][token] = newUserBalance;
         userTotalBalanceUSD[msg.sender] = currentUserTotal - usdValue;
         totalDepositedUSD = currentTotalDeposited - usdValue;
         totalWithdrawals = currentTotalWithdrawals + 1;
         
-        // Interactions
+        // INTERACTIONS (Module 3 CEI Pattern - external calls last)
         if (token == NATIVE_TOKEN) {
             _safeTransferETH(msg.sender, amount);
         } else {
@@ -431,7 +450,8 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         if (!success) revert TransferFailed();
     }
     
-    /// @notice Fallback function to receive ETH
+    /// @notice Receive function for direct ETH deposits (Module 3 pattern)
+    /// @dev Automatically converts received ETH to bank deposit
     receive() external payable {
         if (msg.value > 0) {
             this.depositETH();
