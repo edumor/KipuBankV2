@@ -125,17 +125,17 @@ error InvalidOracleData();
 KipuBankV2
 ├── AccessControl     (Roles y permisos)
 ├── ReentrancyGuard   (Protección reentrancy)
-├── Pausable          (Circuit breaker)
+├── Emergency Pause   (Circuit breaker)
 ├── Multi-token       (ETH + ERC20s)
 ├── Chainlink         (Price feeds)
-└── DecimalConverter  (Normalización)
+└── Decimal Handling  (Normalización USD)
 ```
 
 ### Componentes Principales
 
-1. **KipuBankV2.sol** - Contrato principal con toda la lógica bancaria
-2. **IKipuBankV2.sol** - Interface completa con eventos y errores
-3. **DecimalConverter.sol** - Librería para manejo de decimales y conversiones
+1. **contracts/KipuBankV2.sol** - Contrato principal con toda la lógica bancaria avanzada
+2. **script/Deploy.s.sol** - Script de deployment para diferentes redes
+3. **foundry.toml** - Configuración del proyecto Foundry
 
 ---
 
