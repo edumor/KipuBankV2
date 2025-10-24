@@ -14,6 +14,257 @@
 - **Seguridad Empresarial**: Pausas de emergencia y protección contra reentrancy
 - **Observabilidad Completa**: Eventos detallados y errores descriptivos
 
+## 🏦 **¿QUÉ HACE EL CONTRATO KIPUBANKV2?**
+
+### 📖 **Descripción Funcional Completa**
+
+**KipuBankV2** es un banco descentralizado completo que gestiona depósitos y retiros de múltiples criptomonedas con las siguientes capacidades:
+
+#### **💰 Sistema Bancario Multi-Token**
+El contrato actúa como un banco que acepta tanto **ETH nativo** como **tokens ERC-20**. Cada usuario tiene balances individuales para cada tipo de token que deposita:
+
+- **ETH Nativo**: Representado internamente como `address(0)` siguiendo estándares DeFi
+- **Tokens ERC-20**: Cualquier token que el administrador haya agregado al sistema
+- **Balances Separados**: Cada usuario mantiene balances independientes por token
+- **Conversión USD**: Todos los valores se normalizan a USD para límites y contabilidad
+
+#### **🔗 Integración con Oráculos Chainlink**
+El contrato utiliza **Chainlink Data Feeds** para obtener precios en tiempo real:
+
+- **Precios Actualizados**: Cada transacción usa el precio más reciente del mercado
+- **Validación de Datos**: Verifica que los precios sean positivos y actualizados (máximo 1 hora)
+- **Multi-Oracle**: Cada token puede tener su propio feed de precios dedicado
+- **Normalización**: Convierte todos los valores a USD con 6 decimales (estándar USDC)
+
+#### **🛡️ Sistema de Control de Acceso**
+Implementa roles granulares usando **OpenZeppelin AccessControl**:
+
+- **ADMIN_ROLE**: Puede agregar/remover tokens soportados
+- **EMERGENCY_ROLE**: Puede pausar/despausar el sistema completo
+- **DEFAULT_ADMIN_ROLE**: Control maestro sobre todos los roles
+
+#### **⚖️ Límites y Capacidades**
+El banco opera con límites configurables para seguridad:
+
+- **Capacidad Total**: Límite máximo de USD que puede almacenar el banco
+- **Límite de Retiro**: Cantidad máxima que un usuario puede retirar por transacción
+- **Depósito Mínimo**: Cantidad mínima requerida para depositar (1 USD)
+
+## 🔧 **FUNCIONES PRINCIPALES Y QUÉ REALIZAN**
+
+### 💳 **Funciones de Depósito**
+
+#### **`depositETH()` - Depositar Ethereum**
+```solidity
+function depositETH() external payable whenNotPaused validAmount(msg.value) nonReentrant
+```
+**¿Qué hace?**
+1. Recibe ETH nativo enviado con la transacción (`msg.value`)
+2. Convierte el ETH a valor USD usando el precio de Chainlink
+3. Verifica que el depósito no exceda la capacidad del banco
+4. Actualiza el balance del usuario y las estadísticas globales
+5. Emite evento `Deposit` con todos los detalles
+
+**¿Por qué es importante?**
+- Permite a usuarios depositar la criptomoneda nativa de Ethereum
+- Gestiona automáticamente la conversión de ETH a USD para límites
+- Mantiene contabilidad precisa de todos los depósitos
+
+#### **`depositToken(address token, uint256 amount)` - Depositar Tokens ERC-20**
+```solidity
+function depositToken(address token, uint256 amount) external whenNotPaused validAmount(amount) onlySupportedToken(token) nonReentrant
+```
+**¿Qué hace?**
+1. Verifica que el token esté en la lista de tokens soportados
+2. Transfiere tokens desde la wallet del usuario al contrato usando `SafeERC20`
+3. Convierte el valor del token a USD usando su precio feed específico
+4. Actualiza balances y estadísticas igual que con ETH
+5. Emite evento `Deposit` correspondiente
+
+**¿Por qué es importante?**
+- Diversifica los tipos de activos que el banco puede manejar
+- Usa `SafeERC20` para compatibilidad con tokens problemáticos
+- Mantiene consistencia en el tratamiento de diferentes tokens
+
+### 🏧 **Funciones de Retiro**
+
+#### **`withdrawETH(uint256 amount)` - Retirar Ethereum**
+```solidity
+function withdrawETH(uint256 amount) external whenNotPaused validAmount(amount) nonReentrant
+```
+**¿Qué hace?**
+1. Convierte la cantidad solicitada a valor USD
+2. Verifica que no exceda el límite de retiro por transacción
+3. Verifica que el usuario tenga suficiente balance
+4. Actualiza balances y estadísticas del banco
+5. Transfiere ETH al usuario usando transferencia segura
+6. Emite evento `Withdrawal` con detalles
+
+**¿Por qué es importante?**
+- Permite a usuarios recuperar su ETH depositado
+- Aplica límites de seguridad para prevenir retiros masivos
+- Usa transferencias seguras para evitar fallos
+
+#### **`withdrawToken(address token, uint256 amount)` - Retirar Tokens ERC-20**
+```solidity
+function withdrawToken(address token, uint256 amount) external whenNotPaused validAmount(amount) onlySupportedToken(token) nonReentrant
+```
+**¿Qué hace?**
+1. Verifica que el token esté soportado y el usuario tenga balance
+2. Convierte cantidad a USD y verifica límites
+3. Actualiza balances del usuario y del banco
+4. Transfiere tokens usando `SafeERC20.safeTransfer`
+5. Emite evento `Withdrawal` correspondiente
+
+**¿Por qué es importante?**
+- Completa la funcionalidad bancaria permitiendo retiros de cualquier token
+- Mantiene la misma lógica de seguridad para todos los tipos de activos
+
+### 📊 **Funciones de Consulta**
+
+#### **`getUserBalance(address user, address token)` - Consultar Balance Individual**
+```solidity
+function getUserBalance(address user, address token) external view returns (uint256)
+```
+**¿Qué hace?**
+- Retorna el balance de un usuario específico para un token específico
+- El balance está expresado en USD con 6 decimales
+- No requiere gas (función de solo lectura)
+
+**¿Por qué es importante?**
+- Permite a usuarios y aplicaciones consultar balances sin costo
+- Proporciona información normalizada en USD
+
+#### **`getUserTotalBalance(address user)` - Balance Total del Usuario**
+```solidity
+function getUserTotalBalance(address user) external view returns (uint256)
+```
+**¿Qué hace?**
+- Retorna la suma total de todos los balances del usuario en USD
+- Incluye ETH y todos los tokens ERC-20 depositados
+- No requiere gas (función de solo lectura)
+
+**¿Por qué es importante?**
+- Da una vista completa de la riqueza del usuario en el banco
+- Útil para aplicaciones que necesitan el valor total
+
+#### **`getBankInfo()` - Estadísticas Completas del Banco**
+```solidity
+function getBankInfo() external view returns (uint256 totalDepUSD, uint256 totalDeps, uint256 totalWiths, uint256 bankCapUSD, uint256 withdrawLimitUSD, bool paused)
+```
+**¿Qué hace?**
+- Retorna un resumen completo del estado del banco
+- Incluye total depositado, número de operaciones, límites y estado
+- Optimizada para obtener toda la información en una sola llamada
+
+**¿Por qué es importante?**
+- Proporciona transparencia sobre el estado del banco
+- Útil para dashboards y monitoreo
+
+### 🔗 **Funciones de Precios Chainlink**
+
+#### **`getETHPrice()` - Precio Actual de Ethereum**
+```solidity
+function getETHPrice() public view returns (uint256 price)
+```
+**¿Qué hace?**
+1. Consulta el precio feed de Chainlink para ETH/USD
+2. Valida que el precio sea positivo y actualizado (máximo 1 hora)
+3. Retorna el precio en formato de 8 decimales (estándar Chainlink)
+4. Revierte con error si los datos están obsoletos o son inválidos
+
+**¿Por qué es importante?**
+- Proporciona precios precisos y actualizados para conversiones
+- Incluye validaciones de seguridad para datos de oráculos
+
+#### **`getTokenPrice(address token)` - Precio de Cualquier Token**
+```solidity
+function getTokenPrice(address token) public view returns (uint256 price)
+```
+**¿Qué hace?**
+- Si es ETH (address(0)), llama a `getETHPrice()`
+- Para tokens ERC-20, usa su price feed específico
+- Aplica las mismas validaciones de datos que ETH
+- Retorna precio en formato estándar de Chainlink
+
+**¿Por qué es importante?**
+- Unifica el acceso a precios para todos los tokens
+- Mantiene consistencia en validaciones
+
+#### **`convertToUSD(address token, uint256 amount)` - Conversión a USD**
+```solidity
+function convertToUSD(address token, uint256 amount) public view returns (uint256 usdValue)
+```
+**¿Qué hace?**
+1. Obtiene el precio del token usando `getTokenPrice()`
+2. Obtiene los decimales del token de su configuración
+3. Aplica fórmula de conversión: `(amount * price) / (10^(tokenDecimals + 2))`
+4. Retorna valor en USD con 6 decimales (estándar USDC)
+
+**¿Por qué es importante?**
+- Núcleo del sistema de normalización a USD
+- Maneja correctamente diferentes decimales de tokens
+- Usado internamente por todas las funciones de depósito/retiro
+
+### 🔐 **Funciones Administrativas**
+
+#### **`addToken(address, string, uint8, address)` - Agregar Soporte de Token**
+```solidity
+function addToken(address token, string memory symbol, uint8 decimals, address priceFeed) external onlyRole(ADMIN_ROLE)
+```
+**¿Qué hace?**
+1. Verifica que el llamador tenga `ADMIN_ROLE`
+2. Previene agregar ETH nativo (ya está incluido)
+3. Registra el token con su información y price feed
+4. Emite evento `TokenAdded` para tracking
+
+**¿Por qué es importante?**
+- Permite expansión del banco con nuevos tokens
+- Mantiene control administrativo sobre qué tokens acepta el banco
+
+#### **`removeToken(address token)` - Remover Soporte de Token**
+```solidity
+function removeToken(address token) external onlyRole(ADMIN_ROLE)
+```
+**¿Qué hace?**
+- Verifica permisos de administrador
+- Elimina token de la lista de soportados
+- Previene remover ETH nativo
+- Emite evento `TokenRemoved`
+
+**¿Por qué es importante?**
+- Permite remover tokens problemáticos o descontinuados
+- Mantiene flexibilidad en la gestión de tokens
+
+### 🚨 **Funciones de Emergencia**
+
+#### **`emergencyPause()` - Pausar Sistema**
+```solidity
+function emergencyPause() external onlyRole(EMERGENCY_ROLE)
+```
+**¿Qué hace?**
+- Verifica que el llamador tenga `EMERGENCY_ROLE`
+- Activa la pausa global del sistema
+- Previene nuevos depósitos y retiros
+- Emite evento `EmergencyPauseToggled`
+
+**¿Por qué es importante?**
+- Proporciona circuit breaker en caso de exploits o problemas
+- Permite respuesta rápida a emergencias
+
+#### **`emergencyUnpause()` - Reanudar Sistema**
+```solidity
+function emergencyUnpause() external onlyRole(EMERGENCY_ROLE)
+```
+**¿Qué hace?**
+- Desactiva la pausa del sistema
+- Permite resumir operaciones normales
+- Solo ejecutable por usuarios con `EMERGENCY_ROLE`
+
+**¿Por qué es importante?**
+- Permite reanudar operaciones después de resolver problemas
+- Mantiene control granular sobre el estado del sistema
+
 ## 👨‍🏫 **SECCIÓN PARA EL INSTRUCTOR**
 
 ### 📚 **Implementaciones del Módulo 3 Requeridas**
