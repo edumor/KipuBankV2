@@ -7,15 +7,17 @@
 
 ## 📋 Contract Information
 
-- **Contract Address:** `0x4759C99DeeDe743aC81105e4bfcCb809BFa002E3`
+- **Contract Address:** `0x5118780bEfEC5eBB67eaBbD0660441632577C2DA`
 - **Network:** Sepolia Testnet
-- **Etherscan:** [View on Etherscan](https://sepolia.etherscan.io/address/0x4759C99DeeDe743aC81105e4bfcCb809BFa002E3)
+- **Etherscan:** [View on Etherscan](https://sepolia.etherscan.io/address/0x5118780bEfEC5eBB67eaBbD0660441632577C2DA)
 - **Solidity Version:** 0.8.20
-- **Status:** ✅ Verified and Deployed
+- **Status:** ✅ Verified and Deployed (Optimized Version)
 
 ## 🎯 Project Description
 
 KipuBankV2 is a decentralized banking system developed following **Module 3** concepts of the Solidity course. The contract enables ETH and ERC20 token deposits and withdrawals with automatic USD conversion using Chainlink oracles, role-based access control, and advanced security features.
+
+> **⚡ OPTIMIZATION NOTE:** This contract has been fully optimized to eliminate multiple storage access patterns. Each function performs only **one read per storage variable**, following Module 3 gas optimization best practices.
 
 ---
 
@@ -151,7 +153,7 @@ struct TokenInfo {
 ## 🧪 For Instructor - How to Test on Etherscan
 
 ### **Step 1: Access the Contract**
-1. Go to: https://sepolia.etherscan.io/address/0x4759C99DeeDe743aC81105e4bfcCb809BFa002E3
+1. Go to: https://sepolia.etherscan.io/address/0x5118780bEfEC5eBB67eaBbD0660441632577C2DA
 2. Click on **"Contract"** tab
 3. Select **"Write Contract"** to execute functions
 
@@ -243,9 +245,11 @@ Function: emergencyPause
 
 ## 📈 Contract Statistics
 
-- **Gas Optimized:** Single storage read per function
-- **Complete Events:** Full operation traceability
-- **Custom Errors:** Higher gas efficiency
+- **Gas Optimized:** Single storage read per variable per function ⚡
+- **Zero Multiple Access:** Eliminated all `+=`, `-=`, `++`, `--` operations
+- **Complete Events:** Full operation traceability with indexed parameters
+- **Custom Errors:** Higher gas efficiency vs require strings
+- **Production Ready:** Passed all Module 3 critical requirements
 - **Modular Architecture:** Easy maintenance and updates
 
 ## 🎓 Module 3 Concepts Applied
