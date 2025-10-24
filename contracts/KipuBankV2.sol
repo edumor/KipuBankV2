@@ -278,12 +278,14 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         
         // CEI: Effects
         uint256 currentUserBalance = userBalances[msg.sender][token];
-        uint256 newUserBalance = currentUserBalance + usdValue;
+        uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
+        uint256 currentTotalDeposits = totalDeposits;
         
+        uint256 newUserBalance = currentUserBalance + usdValue;
         userBalances[msg.sender][token] = newUserBalance;
-        userTotalBalanceUSD[msg.sender] += usdValue;
+        userTotalBalanceUSD[msg.sender] = currentUserTotal + usdValue;
         totalDepositedUSD = currentTotalDeposited + usdValue;
-        totalDeposits++;
+        totalDeposits = currentTotalDeposits + 1;
         
         emit Deposit(msg.sender, token, amount, usdValue, newUserBalance);
         
@@ -338,12 +340,15 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         if (usdValue > currentUserBalance) revert LowBalance();
         
         // CEI: Effects
-        uint256 newUserBalance = currentUserBalance - usdValue;
+        uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
+        uint256 currentTotalDeposited = totalDepositedUSD;
+        uint256 currentTotalWithdrawals = totalWithdrawals;
         
+        uint256 newUserBalance = currentUserBalance - usdValue;
         userBalances[msg.sender][token] = newUserBalance;
-        userTotalBalanceUSD[msg.sender] -= usdValue;
-        totalDepositedUSD -= usdValue;
-        totalWithdrawals++;
+        userTotalBalanceUSD[msg.sender] = currentUserTotal - usdValue;
+        totalDepositedUSD = currentTotalDeposited - usdValue;
+        totalWithdrawals = currentTotalWithdrawals + 1;
         
         emit Withdrawal(msg.sender, token, amount, usdValue, newUserBalance);
         
