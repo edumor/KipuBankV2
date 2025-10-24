@@ -17,8 +17,6 @@
 
 KipuBankV2 is a decentralized banking system developed following **Module 3** concepts of the Solidity course. The contract enables ETH and ERC20 token deposits and withdrawals with automatic USD conversion using Chainlink oracles, role-based access control, and advanced security features.
 
-> **⚡ OPTIMIZATION NOTE:** This contract has been fully optimized to eliminate multiple storage access patterns. Each function performs only **one read per storage variable**, following Module 3 gas optimization best practices.
-
 ---
 
 ## 📝 For Instructor - Module 3 Technical Analysis
@@ -290,3 +288,4 @@ Function: emergencyPause
 **Module:** 3 - Advanced Solidity Development  
 
 **Status:** ✅ Completed and Verified
+
