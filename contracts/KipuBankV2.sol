@@ -179,7 +179,8 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @dev Reverts with Paused() if emergencyPaused is true
      */
     modifier whenNotPaused() {
-        if (emergencyPaused) revert Paused();
+        bool isPaused = emergencyPaused; // Single storage read
+        if (isPaused) revert Paused();
         _;
     }
     
@@ -264,25 +265,24 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
     {
         if (token == NATIVE_TOKEN) revert TokenNotSupported();
         
+        // CEI: Checks - Single storage reads for all state variables
         TokenInfo memory tokenInfo = supportedTokens[token];
         if (!tokenInfo.isSupported) revert TokenNotSupported();
         
-        // CEI: Checks - Calcular USD value con un solo acceso a storage
+        uint256 currentTotalDeposited = totalDepositedUSD;
+        uint256 currentUserBalance = userBalances[msg.sender][token];
+        uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
+        uint256 currentTotalDeposits = totalDeposits;
+        
         (, int256 answer, , uint256 updatedAt, ) = tokenInfo.priceFeed.latestRoundData();
         if (answer <= 0) revert BadPriceFeed();
         if (block.timestamp - updatedAt > ORACLE_HEARTBEAT) revert StalePrice();
         
         uint256 usdValue = (amount * uint256(answer)) / (10 ** (tokenInfo.decimals + 2));
         if (usdValue < MIN_DEPOSIT_USD) revert ZeroAmount();
-        
-        uint256 currentTotalDeposited = totalDepositedUSD;
         if (currentTotalDeposited + usdValue > BANK_CAP_USD) revert CapExceeded();
         
-        // CEI: Effects
-        uint256 currentUserBalance = userBalances[msg.sender][token];
-        uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
-        uint256 currentTotalDeposits = totalDeposits;
-        
+        // CEI: Effects - Update state using memory variables
         uint256 newUserBalance = currentUserBalance + usdValue;
         userBalances[msg.sender][token] = newUserBalance;
         userTotalBalanceUSD[msg.sender] = currentUserTotal + usdValue;
@@ -329,25 +329,24 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
     {
         if (token == NATIVE_TOKEN) revert TokenNotSupported();
         
+        // CEI: Checks - Single storage reads for all state variables
         TokenInfo memory tokenInfo = supportedTokens[token];
         if (!tokenInfo.isSupported) revert TokenNotSupported();
         
-        // CEI: Checks - Calcular USD value con un solo acceso a storage
+        uint256 currentUserBalance = userBalances[msg.sender][token];
+        uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
+        uint256 currentTotalDeposited = totalDepositedUSD;
+        uint256 currentTotalWithdrawals = totalWithdrawals;
+        
         (, int256 answer, , uint256 updatedAt, ) = tokenInfo.priceFeed.latestRoundData();
         if (answer <= 0) revert BadPriceFeed();
         if (block.timestamp - updatedAt > ORACLE_HEARTBEAT) revert StalePrice();
         
         uint256 usdValue = (amount * uint256(answer)) / (10 ** (tokenInfo.decimals + 2));
         if (usdValue > WITHDRAWAL_LIMIT_USD) revert LimitExceeded();
-        
-        uint256 currentUserBalance = userBalances[msg.sender][token];
         if (usdValue > currentUserBalance) revert LowBalance();
         
-        // CEI: Effects
-        uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
-        uint256 currentTotalDeposited = totalDepositedUSD;
-        uint256 currentTotalWithdrawals = totalWithdrawals;
-        
+        // CEI: Effects - Update state using memory variables
         uint256 newUserBalance = currentUserBalance - usdValue;
         userBalances[msg.sender][token] = newUserBalance;
         userTotalBalanceUSD[msg.sender] = currentUserTotal - usdValue;
@@ -525,6 +524,9 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @dev Used during security incidents or maintenance periods
      */
     function emergencyPause() external onlyRole(EMERGENCY_ROLE) {
+        bool currentPaused = emergencyPaused; // Single storage read
+        if (currentPaused) return; // Already paused, no need to change
+        
         emergencyPaused = true;
         emit EmergencyPauseToggled(true);
     }
@@ -535,6 +537,9 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @dev Should only be used after resolving the emergency condition
      */
     function emergencyUnpause() external onlyRole(EMERGENCY_ROLE) {
+        bool currentPaused = emergencyPaused; // Single storage read
+        if (!currentPaused) return; // Already unpaused, no need to change
+        
         emergencyPaused = false;
         emit EmergencyPauseToggled(false);
     }
@@ -549,19 +554,17 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @param amount Amount of tokens to deposit in native token decimals
      */
     function _deposit(address token, uint256 amount) internal {
-        // CEI: Checks
-        uint256 usdValue = convertToUSD(token, amount);
-        if (usdValue < MIN_DEPOSIT_USD) revert ZeroAmount();
-        
-        // Verificar límite del banco
+        // CEI: Checks - Single storage reads for all state variables
         uint256 currentTotalDeposited = totalDepositedUSD;
-        if (currentTotalDeposited + usdValue > BANK_CAP_USD) revert CapExceeded();
-        
-        // CEI: Effects
         uint256 currentUserBalance = userBalances[msg.sender][token];
         uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
         uint256 currentTotalDeposits = totalDeposits;
         
+        uint256 usdValue = convertToUSD(token, amount);
+        if (usdValue < MIN_DEPOSIT_USD) revert ZeroAmount();
+        if (currentTotalDeposited + usdValue > BANK_CAP_USD) revert CapExceeded();
+        
+        // CEI: Effects - Update state using memory variables
         uint256 newUserBalance = currentUserBalance + usdValue;
         userBalances[msg.sender][token] = newUserBalance;
         userTotalBalanceUSD[msg.sender] = currentUserTotal + usdValue;
@@ -581,18 +584,17 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @param amount Amount of tokens to withdraw in native token decimals
      */
     function _withdraw(address token, uint256 amount) internal {
-        // CEI: Checks
-        uint256 usdValue = convertToUSD(token, amount);
-        if (usdValue > WITHDRAWAL_LIMIT_USD) revert LimitExceeded();
-        
+        // CEI: Checks - Single storage reads for all state variables
         uint256 currentUserBalance = userBalances[msg.sender][token];
-        if (usdValue > currentUserBalance) revert LowBalance();
-        
-        // CEI: Effects
         uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
         uint256 currentTotalDeposited = totalDepositedUSD;
         uint256 currentTotalWithdrawals = totalWithdrawals;
         
+        uint256 usdValue = convertToUSD(token, amount);
+        if (usdValue > WITHDRAWAL_LIMIT_USD) revert LimitExceeded();
+        if (usdValue > currentUserBalance) revert LowBalance();
+        
+        // CEI: Effects - Update state using memory variables
         uint256 newUserBalance = currentUserBalance - usdValue;
         userBalances[msg.sender][token] = newUserBalance;
         userTotalBalanceUSD[msg.sender] = currentUserTotal - usdValue;
