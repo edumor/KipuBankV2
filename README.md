@@ -34,39 +34,101 @@ bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
 // DEFAULT_ADMIN_ROLE inherited from AccessControl
 ```
 
-#### **Administrative Functions:**
+#### **How Access Control is Used Throughout the Contract:**
 
-1. **`addToken()`** - Line 490
-   - **Required Role:** `ADMIN_ROLE`
-   - **Purpose:** Add new supported ERC20 tokens
-   - **Why:** Only administrators can expand accepted tokens
-   ```solidity
-   function addToken(address token, string memory symbol, uint8 decimals, address priceFeed) 
-       external onlyRole(ADMIN_ROLE)
-   ```
+#### **1. ADMIN_ROLE - Token Management Authority**
 
-2. **`removeToken()`** - Line 499
-   - **Required Role:** `ADMIN_ROLE`
-   - **Purpose:** Remove tokens from the system
-   - **Why:** Administrative control for obsolete or problematic tokens
+**Functions Protected:**
+- **`addToken(address token, string memory symbol, uint8 decimals, address priceFeed)`** - Line 490
+- **`removeToken(address token)`** - Line 499
 
-3. **`emergencyPause()`** - Line 505
-   - **Required Role:** `EMERGENCY_ROLE`
-   - **Purpose:** Pause contract during emergencies
-   - **Why:** Critical security requires specialized role
+**Where Used:** Token configuration management
+**Why Needed:** 
+- **Financial Security:** Only trusted administrators can add new tokens to prevent malicious tokens
+- **Oracle Security:** Each token requires a validated Chainlink price feed - wrong feeds could manipulate prices
+- **System Integrity:** Prevents unauthorized expansion of supported assets
 
-4. **`emergencyUnpause()`** - Line 510
-   - **Required Role:** `EMERGENCY_ROLE`
-   - **Purpose:** Resume operations after emergency
+**Implementation:**
+```solidity
+function addToken(address token, string memory symbol, uint8 decimals, address priceFeed) 
+    external onlyRole(ADMIN_ROLE) 
+{
+    supportedTokens[token] = TokenInfo({
+        isSupported: true,
+        decimals: decimals,
+        priceFeed: AggregatorV3Interface(priceFeed),
+        symbol: symbol
+    });
+}
+```
+
+**Critical Impact:** Without this control, anyone could add fake tokens or manipulate price feeds
+
+#### **2. EMERGENCY_ROLE - Crisis Management Authority**
+
+**Functions Protected:**
+- **`emergencyPause()`** - Line 505  
+- **`emergencyUnpause()`** - Line 510
+
+**Where Used:** System-wide operation control
+**Why Needed:**
+- **Immediate Response:** Quick reaction to security threats or oracle failures
+- **User Protection:** Prevent deposits/withdrawals during critical issues
+- **Damage Limitation:** Stop operations before major losses occur
+- **Regulatory Compliance:** Meet emergency stop requirements
+
+**Implementation:**
+```solidity
+function emergencyPause() external onlyRole(EMERGENCY_ROLE) {
+    emergencyPaused = true;
+    emit EmergencyPauseToggled(true);
+}
+```
+
+**Critical Impact:** The `whenNotPaused` modifier on `depositETH`, `depositToken`, `withdrawETH`, `withdrawToken` means this role can instantly freeze all banking operations
+
+#### **3. DEFAULT_ADMIN_ROLE - Master Control Authority**
+
+**Where Used:** Role management and contract administration
+**Why Needed:**
+- **Role Assignment:** Can grant/revoke ADMIN_ROLE and EMERGENCY_ROLE  
+- **Access Hierarchy:** Supreme authority over all contract permissions
+- **Recovery Mechanism:** Can restore access if other roles are compromised
+
+**Functions Affected:** All `grantRole()`, `revokeRole()` operations
+
+#### **Access Control Integration with Core Functions:**
+
+**Protected User Functions:**
+```solidity
+// All main banking functions are protected by emergency pause
+function depositETH() external payable whenNotPaused validAmount(msg.value) nonReentrant
+function depositToken(address token, uint256 amount) external whenNotPaused validAmount(amount) nonReentrant  
+function withdrawETH(uint256 amount) external whenNotPaused validAmount(amount) nonReentrant
+function withdrawToken(address token, uint256 amount) external whenNotPaused validAmount(amount) nonReentrant
+```
+
+**Why This Design:**
+- **EMERGENCY_ROLE** can instantly freeze all user operations via `emergencyPause()`
+- **Normal users** have NO special roles - they use public functions with safety checks
+- **Token validity** is enforced through ADMIN_ROLE-managed `supportedTokens` mapping
+
+#### **Security Architecture Benefits:**
+1. **Separation of Concerns:** Different roles for different responsibilities
+2. **Principle of Least Privilege:** Each role has minimal required permissions  
+3. **Emergency Response:** Instant system freeze capability
+4. **Upgradeable Security:** Role assignment can be modified by DEFAULT_ADMIN_ROLE
 
 #### **Initial Role Configuration:**
 ```solidity
 constructor(uint256 _withdrawalLimitUSD, uint256 _bankCapUSD, address _ethUsdPriceFeed) {
-    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-    _grantRole(ADMIN_ROLE, msg.sender);
-    _grantRole(EMERGENCY_ROLE, msg.sender);
+    _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);  // Master control
+    _grantRole(ADMIN_ROLE, msg.sender);          // Token management  
+    _grantRole(EMERGENCY_ROLE, msg.sender);      // Crisis response
 }
 ```
+
+**Deployment Security:** All roles initially assigned to deployer, can be redistributed to specialized addresses later
 
 ### 🚨 **Events and Error Handling**
 
