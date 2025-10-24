@@ -9,147 +9,201 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 /**
- * @title KipuBankV2
- * @author Eduardo Moreno - Módulo 3 Ethereum Developer Program
- * @notice Multi-token banking system with Chainlink price feeds and role-based access control
- * @dev Implements Module 3 concepts: AccessControl, SafeERC20, multi-token support, Chainlink oracles
- * @custom:security CEI pattern, ReentrancyGuard, single storage access optimization
- * @custom:module Based on Module 3 - DonationsV2 pattern with banking functionality
+ * @title KipuBankV2 - Advanced Multi-Token Banking System
+ * @author Eduardo Moreno - Module 3 Ethereum Developer Program
+ * @notice Advanced bank with multi-token support, Chainlink oracles and role-based access control
+ * @dev Implements Module 3 security and efficiency best practices including CEI pattern, reentrancy protection, and safe token handling
+ * @custom:security-contact eduardo.moreno@kipubank.com
  */
 contract KipuBankV2 is AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    // ============ CONSTANTS (Module 3 Pattern) ============
+    // ============ TYPE DECLARATIONS ============
     
-    /// @notice Admin role for token management and configuration
+    /**
+     * @notice Information about supported tokens including price feed and metadata
+     * @dev Used to store token configuration and oracle information
+     * @param isSupported Whether the token is currently supported for deposits/withdrawals
+     * @param decimals Number of decimal places for the token (e.g., 18 for ETH, 6 for USDC)
+     * @param priceFeed Chainlink price feed contract for USD conversion
+     * @param symbol Token symbol for identification and events
+     */
+    struct TokenInfo {
+        bool isSupported;
+        uint8 decimals;
+        AggregatorV3Interface priceFeed;
+        string symbol;
+    }
+
+    // ============ CONSTANTS ============
+    
+    /// @notice Role identifier for administrative functions like adding/removing tokens
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     
-    /// @notice Emergency role for pause functionality
+    /// @notice Role identifier for emergency functions like pausing the contract
     bytes32 public constant EMERGENCY_ROLE = keccak256("EMERGENCY_ROLE");
     
-    /// @notice Native ETH representation as taught in Module 3
+    /// @notice Address representing native ETH token (address zero)
     address public constant NATIVE_TOKEN = address(0);
     
-    /// @notice Minimum deposit: 1 USD normalized to 6 decimals (USDC standard)
+    /// @notice Minimum deposit amount in USD (6 decimals) - $1.00 USD
     uint256 public constant MIN_DEPOSIT_USD = 1e6;
-
-    // ============ IMMUTABLE STATE (Module 3 Best Practice) ============
     
-    /// @notice Per-transaction withdrawal limit in USD (6 decimals)
+    /// @notice Maximum age for oracle price data in seconds (1 hour)
+    uint16 public constant ORACLE_HEARTBEAT = 3600;
+    
+    /// @notice Decimal conversion factor for ETH(18) + Oracle(8) to USD(6) = 10^20
+    uint256 public constant DECIMAL_FACTOR = 1e20;
+
+    // ============ IMMUTABLE VARIABLES ============
+    
+    /// @notice Maximum withdrawal amount per transaction in USD (6 decimals)
     uint256 public immutable WITHDRAWAL_LIMIT_USD;
     
-    /// @notice Total bank capacity in USD (6 decimals) 
+    /// @notice Maximum total capacity of the bank in USD (6 decimals)
     uint256 public immutable BANK_CAP_USD;
     
-    /// @notice Chainlink ETH/USD price feed (as taught in Module 3)
+    /// @notice Chainlink ETH/USD price feed contract interface
     AggregatorV3Interface public immutable ethUsdPriceFeed;
 
-    // ============ STATE VARIABLES (Module 3 Architecture) ============
+    // ============ STATE VARIABLES ============
     
-    /// @notice Total deposited value normalized to USD (6 decimals)
+    /// @notice Total amount deposited across all tokens in USD (6 decimals)
     uint256 public totalDepositedUSD;
     
-    /// @notice Counter for total deposits (gas-efficient tracking)
+    /// @notice Total number of deposit transactions executed
     uint256 public totalDeposits;
     
-    /// @notice Counter for total withdrawals (gas-efficient tracking)
+    /// @notice Total number of withdrawal transactions executed
     uint256 public totalWithdrawals;
     
-    /// @notice Emergency pause flag (security feature from Module 3)
+    /// @notice Emergency pause state - when true, deposits and withdrawals are blocked
     bool public emergencyPaused;
     
-    /// @notice Token registry with price feed integration (Module 3 pattern)
+    /// @notice Mapping of token addresses to their configuration and metadata
     mapping(address => TokenInfo) public supportedTokens;
     
-    /// @notice User balances: user => token => USD amount (Module 3 normalization)
+    /// @notice Nested mapping: user address => token address => balance in USD (6 decimals)
     mapping(address => mapping(address => uint256)) public userBalances;
     
-    /// @notice User totals in USD for efficient queries (Module 3 optimization)
+    /// @notice Mapping of user addresses to their total balance across all tokens in USD (6 decimals)
     mapping(address => uint256) public userTotalBalanceUSD;
-
-    // ============ STRUCTS (Module 3 Data Architecture) ============
-    
-    /// @notice Token metadata and price feed configuration (Module 3 pattern)
-    struct TokenInfo {
-        bool isSupported;                   // Token whitelist status
-        uint8 decimals;                     // Token decimal places
-        AggregatorV3Interface priceFeed;    // Chainlink price oracle
-        string symbol;                      // Human-readable identifier
-    }
 
     // ============ EVENTS ============
     
-    /// @notice Emitted when a user deposits tokens
-    event Deposit(address indexed user, address indexed token, uint256 amount, uint256 usdValue, uint256 newBalance);
+    /**
+     * @notice Emitted when a user makes a deposit
+     * @param user Address of the user making the deposit
+     * @param token Address of the deposited token (address(0) for ETH)
+     * @param amount Amount of tokens deposited in token's native decimals
+     * @param usdValue USD value of the deposit (6 decimals)
+     * @param newBalance User's new balance for this token in USD (6 decimals)
+     */
+    event Deposit(
+        address indexed user, 
+        address indexed token, 
+        uint256 amount, 
+        uint256 usdValue, 
+        uint256 newBalance
+    );
     
-    /// @notice Emitted when a user withdraws tokens
-    event Withdrawal(address indexed user, address indexed token, uint256 amount, uint256 usdValue, uint256 newBalance);
+    /**
+     * @notice Emitted when a user makes a withdrawal
+     * @param user Address of the user making the withdrawal
+     * @param token Address of the withdrawn token (address(0) for ETH)
+     * @param amount Amount of tokens withdrawn in token's native decimals
+     * @param usdValue USD value of the withdrawal (6 decimals)
+     * @param newBalance User's new balance for this token in USD (6 decimals)
+     */
+    event Withdrawal(
+        address indexed user, 
+        address indexed token, 
+        uint256 amount, 
+        uint256 usdValue, 
+        uint256 newBalance
+    );
     
-    /// @notice Emitted when a new token is added
+    /**
+     * @notice Emitted when a new token is added to the supported tokens list
+     * @param token Address of the added token
+     * @param symbol Symbol of the added token
+     * @param decimals Number of decimals for the token
+     */
     event TokenAdded(address indexed token, string symbol, uint8 decimals);
     
-    /// @notice Emitted when a token is removed
+    /**
+     * @notice Emitted when a token is removed from the supported tokens list
+     * @param token Address of the removed token
+     */
     event TokenRemoved(address indexed token);
     
-    /// @notice Emitted when emergency pause is toggled
+    /**
+     * @notice Emitted when emergency pause state is toggled
+     * @param paused New pause state (true = paused, false = unpaused)
+     */
     event EmergencyPauseToggled(bool paused);
 
     // ============ CUSTOM ERRORS ============
     
-    /// @notice Error when amount is zero
+    /// @notice Thrown when attempting to deposit or withdraw zero amount
     error ZeroAmount();
     
-    /// @notice Error when token is not supported
+    /// @notice Thrown when attempting to use an unsupported token
     error TokenNotSupported();
     
-    /// @notice Error when deposit exceeds bank capacity
+    /// @notice Thrown when a deposit would exceed the bank's total capacity
     error CapExceeded();
     
-    /// @notice Error when withdrawal exceeds limit
+    /// @notice Thrown when a withdrawal exceeds the per-transaction limit
     error LimitExceeded();
     
-    /// @notice Error when user has insufficient balance
+    /// @notice Thrown when user doesn't have sufficient balance for withdrawal
     error LowBalance();
     
-    /// @notice Error when transfer fails
+    /// @notice Thrown when ETH transfer fails
     error TransferFailed();
     
-    /// @notice Error when contract is paused
+    /// @notice Thrown when attempting operations while contract is paused
     error Paused();
     
-    /// @notice Error when price feed is invalid
+    /// @notice Thrown when price feed returns invalid data (zero or negative)
     error BadPriceFeed();
     
-    /// @notice Error when price data is stale
+    /// @notice Thrown when price feed data is older than ORACLE_HEARTBEAT
     error StalePrice();
 
     // ============ MODIFIERS ============
     
-    /// @notice Ensures contract is not in emergency pause
+    /**
+     * @notice Ensures the contract is not in emergency pause state
+     * @dev Reverts with Paused() if emergencyPaused is true
+     */
     modifier whenNotPaused() {
         if (emergencyPaused) revert Paused();
         _;
     }
     
-    /// @notice Validates that amount is greater than zero
+    /**
+     * @notice Validates that the provided amount is greater than zero
+     * @dev Reverts with ZeroAmount() if amount is zero
+     * @param amount The amount to validate
+     */
     modifier validAmount(uint256 amount) {
         if (amount == 0) revert ZeroAmount();
         _;
     }
     
-    /// @notice Validates that token is supported
-    modifier onlySupportedToken(address token) {
-        if (!supportedTokens[token].isSupported) revert TokenNotSupported();
-        _;
-    }
 
-    // ============ CONSTRUCTOR (Module 3 Pattern) ============
+
+    // ============ CONSTRUCTOR ============
     
-    /// @notice Initializes KipuBankV2 following Module 3 architecture
-    /// @param _withdrawalLimitUSD Per-transaction limit in USD (6 decimals)
-    /// @param _bankCapUSD Total capacity in USD (6 decimals) 
-    /// @param _ethUsdPriceFeed Chainlink ETH/USD aggregator address
-    /// @dev Sets up AccessControl roles and registers native ETH with address(0)
+    /**
+     * @notice Initializes the KipuBankV2 contract with essential parameters
+     * @dev Sets up withdrawal limits, bank capacity, oracle feeds, and initial roles
+     * @param _withdrawalLimitUSD Maximum withdrawal amount per transaction in USD (8 decimals)
+     * @param _bankCapUSD Maximum total capacity of the bank in USD (8 decimals)
+     * @param _ethUsdPriceFeed Address of the Chainlink ETH/USD price feed oracle
+     */
     constructor(
         uint256 _withdrawalLimitUSD,
         uint256 _bankCapUSD,
@@ -159,12 +213,12 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         BANK_CAP_USD = _bankCapUSD;
         ethUsdPriceFeed = AggregatorV3Interface(_ethUsdPriceFeed);
         
-        // AccessControl setup (Module 3 pattern)
+        // Setup initial roles for deployer
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(EMERGENCY_ROLE, msg.sender);
         
-        // Register native ETH as address(0) (Module 3 standard)
+        // Configure ETH as the default supported native token
         supportedTokens[NATIVE_TOKEN] = TokenInfo({
             isSupported: true,
             decimals: 18,
@@ -175,10 +229,14 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         emit TokenAdded(NATIVE_TOKEN, "ETH", 18);
     }
 
-    // ============ DEPOSIT FUNCTIONS (Module 3 Multi-token Pattern) ============
+    // ============ DEPOSIT FUNCTIONS ============
     
-    /// @notice Deposit native ETH using address(0) representation
-    /// @dev Follows Module 3 pattern for native token handling
+    /**
+     * @notice Deposits ETH into the bank
+     * @dev Converts ETH to USD using Chainlink oracle and updates user balance
+     * @dev Emits Deposit event with normalized USD amount
+     * @dev Requires non-zero msg.value and contract not paused
+     */
     function depositETH() 
         external 
         payable 
@@ -189,29 +247,58 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         _deposit(NATIVE_TOKEN, msg.value);
     }
     
-    /// @notice Deposit ERC20 tokens with SafeERC20 protection
-    /// @param token ERC20 contract address
-    /// @param amount Token amount to deposit
-    /// @dev Uses SafeERC20.safeTransferFrom as taught in Module 3
+    /**
+     * @notice Deposits ERC-20 tokens into the bank
+     * @dev Converts token amount to USD and updates user balance
+     * @dev Requires prior token approval and token must be supported
+     * @param token Address of the ERC-20 token to deposit
+     * @param amount Amount of tokens to deposit (in token's native decimals)
+     */
     function depositToken(address token, uint256 amount) 
         external 
         whenNotPaused 
         validAmount(amount) 
-        onlySupportedToken(token) 
         nonReentrant 
     {
         if (token == NATIVE_TOKEN) revert TokenNotSupported();
         
-        // Module 3 pattern: SafeERC20 for secure transfers
+        TokenInfo memory tokenInfo = supportedTokens[token];
+        if (!tokenInfo.isSupported) revert TokenNotSupported();
+        
+        // CEI: Checks - Calcular USD value con un solo acceso a storage
+        (, int256 answer, , uint256 updatedAt, ) = tokenInfo.priceFeed.latestRoundData();
+        if (answer <= 0) revert BadPriceFeed();
+        if (block.timestamp - updatedAt > ORACLE_HEARTBEAT) revert StalePrice();
+        
+        uint256 usdValue = (amount * uint256(answer)) / (10 ** (tokenInfo.decimals + 2));
+        if (usdValue < MIN_DEPOSIT_USD) revert ZeroAmount();
+        
+        uint256 currentTotalDeposited = totalDepositedUSD;
+        if (currentTotalDeposited + usdValue > BANK_CAP_USD) revert CapExceeded();
+        
+        // CEI: Effects
+        uint256 currentUserBalance = userBalances[msg.sender][token];
+        uint256 newUserBalance = currentUserBalance + usdValue;
+        
+        userBalances[msg.sender][token] = newUserBalance;
+        userTotalBalanceUSD[msg.sender] += usdValue;
+        totalDepositedUSD = currentTotalDeposited + usdValue;
+        totalDeposits++;
+        
+        emit Deposit(msg.sender, token, amount, usdValue, newUserBalance);
+        
+        // CEI: Interactions
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        _deposit(token, amount);
     }
     
-    // ============ WITHDRAWAL FUNCTIONS (Module 3 Multi-token Pattern) ============
+    // ============ WITHDRAWAL FUNCTIONS ============
     
-    /// @notice Withdraw native ETH using address(0) representation
-    /// @param amount ETH amount to withdraw
-    /// @dev Follows Module 3 pattern for native token handling
+    /**
+     * @notice Withdraws ETH from the bank
+     * @dev Validates withdrawal limits, updates balances, and transfers ETH
+     * @dev Converts amount to USD for limit validation using current oracle price
+     * @param amount Amount of ETH to withdraw in wei
+     */
     function withdrawETH(uint256 amount) 
         external 
         whenNotPaused 
@@ -221,97 +308,148 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         _withdraw(NATIVE_TOKEN, amount);
     }
     
-    /// @notice Withdraw ERC20 tokens with SafeERC20 protection
-    /// @param token ERC20 contract address
-    /// @param amount Token amount to withdraw
-    /// @dev Uses SafeERC20.safeTransfer as taught in Module 3
+    /**
+     * @notice Withdraws ERC-20 tokens from the bank
+     * @dev Validates withdrawal limits, updates balances, and transfers tokens safely
+     * @dev Cannot be used to withdraw native ETH (use withdrawETH instead)
+     * @param token Address of the ERC-20 token to withdraw
+     * @param amount Amount of tokens to withdraw (in token's native decimals)
+     */
     function withdrawToken(address token, uint256 amount) 
         external 
         whenNotPaused 
         validAmount(amount) 
-        onlySupportedToken(token) 
         nonReentrant 
     {
         if (token == NATIVE_TOKEN) revert TokenNotSupported();
-        _withdraw(token, amount);
+        
+        TokenInfo memory tokenInfo = supportedTokens[token];
+        if (!tokenInfo.isSupported) revert TokenNotSupported();
+        
+        // CEI: Checks - Calcular USD value con un solo acceso a storage
+        (, int256 answer, , uint256 updatedAt, ) = tokenInfo.priceFeed.latestRoundData();
+        if (answer <= 0) revert BadPriceFeed();
+        if (block.timestamp - updatedAt > ORACLE_HEARTBEAT) revert StalePrice();
+        
+        uint256 usdValue = (amount * uint256(answer)) / (10 ** (tokenInfo.decimals + 2));
+        if (usdValue > WITHDRAWAL_LIMIT_USD) revert LimitExceeded();
+        
+        uint256 currentUserBalance = userBalances[msg.sender][token];
+        if (usdValue > currentUserBalance) revert LowBalance();
+        
+        // CEI: Effects
+        uint256 newUserBalance = currentUserBalance - usdValue;
+        
+        userBalances[msg.sender][token] = newUserBalance;
+        userTotalBalanceUSD[msg.sender] -= usdValue;
+        totalDepositedUSD -= usdValue;
+        totalWithdrawals++;
+        
+        emit Withdrawal(msg.sender, token, amount, usdValue, newUserBalance);
+        
+        // CEI: Interactions
+        IERC20(token).safeTransfer(msg.sender, amount);
     }
 
     // ============ VIEW FUNCTIONS ============
     
-    /// @notice Gets user balance for a specific token in USD
-    /// @param user User address
-    /// @param token Token address
-    /// @return Balance in USD (6 decimals)
+    /**
+     * @notice Gets a user's balance for a specific token
+     * @dev Returns the normalized USD balance stored in the mapping
+     * @param user Address of the user to query
+     * @param token Address of the token (use NATIVE_TOKEN constant for ETH)
+     * @return Balance in USD with 8 decimal places
+     */
     function getUserBalance(address user, address token) external view returns (uint256) {
         return userBalances[user][token];
     }
     
-    /// @notice Gets user total balance across all tokens in USD
-    /// @param user User address
-    /// @return Total balance in USD (6 decimals)
+    /**
+     * @notice Gets a user's total balance across all tokens in USD
+     * @dev Aggregated balance maintained for gas efficiency
+     * @param user Address of the user to query
+     * @return Total balance in USD with 8 decimal places
+     */
     function getUserTotalBalance(address user) external view returns (uint256) {
         return userTotalBalanceUSD[user];
     }
     
-    // ============ CHAINLINK PRICE FEEDS (Module 3 Integration) ============
-    
-    /// @notice Get ETH price from Chainlink oracle with staleness check
-    /// @return price ETH price in USD (8 decimals from Chainlink)
-    /// @dev Implements Module 3 pattern for Chainlink data validation
+    /**
+     * @notice Gets the current ETH price in USD from Chainlink oracle
+     * @dev Includes staleness and sanity validations for price feed data
+     * @dev Reverts with BadPriceFeed() if answer <= 0
+     * @dev Reverts with StalePrice() if data is older than ORACLE_HEARTBEAT
+     * @return price Current ETH price in USD with 8 decimal places
+     */
     function getETHPrice() public view returns (uint256 price) {
-        (, int256 answer, , uint256 updatedAt,) = ethUsdPriceFeed.latestRoundData();
+        (, int256 answer, , uint256 updatedAt, ) = ethUsdPriceFeed.latestRoundData();
         
-        // Module 3 validation: positive price and freshness check
         if (answer <= 0) revert BadPriceFeed();
-        if (block.timestamp - updatedAt > 3600) revert StalePrice(); // 1 hour staleness
+        if (block.timestamp - updatedAt > ORACLE_HEARTBEAT) revert StalePrice();
         
         return uint256(answer);
     }
     
-    /// @notice Get token price from Chainlink with validation
-    /// @param token Token address (use address(0) for ETH)
-    /// @return price Token price in USD (8 decimals from Chainlink)
-    /// @dev Module 3 pattern: unified price feed access for all tokens
+    /**
+     * @notice Gets the current price of a token using its Chainlink oracle
+     * @dev For native ETH, delegates to getETHPrice(). For other tokens, queries their specific price feed
+     * @dev Includes staleness and sanity validations for all price feeds
+     * @param token Address of the token to get price for
+     * @return price Current token price in USD with 8 decimal places
+     */
     function getTokenPrice(address token) public view returns (uint256 price) {
-        if (!supportedTokens[token].isSupported) revert TokenNotSupported();
+        TokenInfo memory tokenInfo = supportedTokens[token];
+        if (!tokenInfo.isSupported) revert TokenNotSupported();
         
-        // Handle native ETH (address(0)) as per Module 3
         if (token == NATIVE_TOKEN) {
             return getETHPrice();
         }
         
-        // ERC20 token price feed
-        AggregatorV3Interface priceFeed = supportedTokens[token].priceFeed;
-        (, int256 answer, , uint256 updatedAt,) = priceFeed.latestRoundData();
+        (, int256 answer, , uint256 updatedAt, ) = tokenInfo.priceFeed.latestRoundData();
         
         if (answer <= 0) revert BadPriceFeed();
-        if (block.timestamp - updatedAt > 3600) revert StalePrice();
+        if (block.timestamp - updatedAt > ORACLE_HEARTBEAT) revert StalePrice();
         
         return uint256(answer);
     }
     
-    /// @notice Convert token amount to USD with decimal normalization
-    /// @param token Token address (address(0) for ETH)
-    /// @param amount Token amount in native decimals
-    /// @return usdValue Normalized value in USD (6 decimals like USDC)
-    /// @dev Module 3 pattern: normalize all values to 6 decimal USD representation
+    /**
+     * @notice Converts a token amount to its equivalent USD value
+     * @dev Uses current oracle price and handles decimal normalization
+     * @dev Formula: (amount * price) / (10^(tokenDecimals + priceDecimals - usdDecimals))
+     * @dev Example for ETH: (amount * price) / (10^(18 + 8 - 8)) = (amount * price) / 10^18
+     * @param token Address of the token to convert
+     * @param amount Amount of tokens in the token's native decimals
+     * @return usdValue Equivalent value in USD with 8 decimal places
+     */
     function convertToUSD(address token, uint256 amount) public view returns (uint256 usdValue) {
-        uint256 tokenPrice = getTokenPrice(token);        // 8 decimals from Chainlink
-        uint8 tokenDecimals = supportedTokens[token].decimals;
+        if (token == NATIVE_TOKEN) {
+            uint256 ethPrice = getETHPrice();
+            return (amount * ethPrice) / 1e20; // ETH: 18 decimals + 8 oracle - 8 USD = 18
+        }
         
-        // Module 3 normalization formula:
-        // (amount * price) / (10^tokenDecimals * 10^8 / 10^6)
-        // Simplified: (amount * price) / (10^(tokenDecimals + 2))
-        return (amount * tokenPrice) / (10 ** (tokenDecimals + 2));
+        TokenInfo memory tokenInfo = supportedTokens[token];
+        if (!tokenInfo.isSupported) revert TokenNotSupported();
+        
+        (, int256 answer, , uint256 updatedAt, ) = tokenInfo.priceFeed.latestRoundData();
+        
+        if (answer <= 0) revert BadPriceFeed();
+        if (block.timestamp - updatedAt > ORACLE_HEARTBEAT) revert StalePrice();
+        
+        uint256 tokenPrice = uint256(answer);
+        return (amount * tokenPrice) / (10 ** (tokenInfo.decimals + 2));
     }
     
-    /// @notice Gets comprehensive bank information
-    /// @return totalDepUSD Total deposited in USD
-    /// @return totalDeps Total number of deposits
-    /// @return totalWiths Total number of withdrawals
-    /// @return bankCapUSD Bank capacity in USD
-    /// @return withdrawLimitUSD Withdrawal limit in USD
-    /// @return paused Emergency pause status
+    /**
+     * @notice Gets comprehensive information about the bank's current state
+     * @dev Returns aggregated statistics and configuration parameters
+     * @return totalDepUSD Total amount deposited across all tokens in USD (8 decimals)
+     * @return totalDeps Total number of deposit transactions processed
+     * @return totalWiths Total number of withdrawal transactions processed
+     * @return bankCapUSD Maximum total capacity of the bank in USD (8 decimals)
+     * @return withdrawLimitUSD Maximum withdrawal amount per transaction in USD (8 decimals)
+     * @return paused Current emergency pause state (true = paused, false = active)
+     */
     function getBankInfo() external view returns (
         uint256 totalDepUSD,
         uint256 totalDeps,
@@ -332,11 +470,15 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
 
     // ============ ADMIN FUNCTIONS ============
     
-    /// @notice Adds support for a new ERC20 token (ADMIN_ROLE only)
-    /// @param token Token contract address
-    /// @param symbol Token symbol
-    /// @param decimals Token decimals
-    /// @param priceFeed Chainlink price feed for the token
+    /**
+     * @notice Adds support for a new ERC-20 token
+     * @dev Only admin role can execute. Cannot add native ETH (already supported by default)
+     * @dev Token must have a valid Chainlink price feed for USD conversion
+     * @param token Address of the ERC-20 token contract
+     * @param symbol Token symbol for identification (e.g., "USDC", "WBTC")
+     * @param decimals Number of decimal places the token uses
+     * @param priceFeed Address of the Chainlink price feed oracle for this token
+     */
     function addToken(
         address token,
         string memory symbol,
@@ -355,8 +497,12 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         emit TokenAdded(token, symbol, decimals);
     }
     
-    /// @notice Removes support for an ERC20 token (ADMIN_ROLE only)
-    /// @param token Token contract address
+    /**
+     * @notice Removes support for a previously added token
+     * @dev Only admin role can execute. Cannot remove native ETH support
+     * @dev Users should withdraw their balances before token removal
+     * @param token Address of the token contract to remove from supported list
+     */
     function removeToken(address token) external onlyRole(ADMIN_ROLE) {
         if (token == NATIVE_TOKEN) revert TokenNotSupported();
         
@@ -364,94 +510,116 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
         emit TokenRemoved(token);
     }
     
-    /// @notice Emergency pause function (EMERGENCY_ROLE only)
+    /**
+     * @notice Activates emergency pause to halt all operations
+     * @dev Only emergency role can execute. Stops all deposits and withdrawals
+     * @dev Used during security incidents or maintenance periods
+     */
     function emergencyPause() external onlyRole(EMERGENCY_ROLE) {
         emergencyPaused = true;
         emit EmergencyPauseToggled(true);
     }
     
-    /// @notice Emergency unpause function (EMERGENCY_ROLE only)
+    /**
+     * @notice Deactivates emergency pause to resume normal operations
+     * @dev Only emergency role can execute. Re-enables all deposits and withdrawals
+     * @dev Should only be used after resolving the emergency condition
+     */
     function emergencyUnpause() external onlyRole(EMERGENCY_ROLE) {
         emergencyPaused = false;
         emit EmergencyPauseToggled(false);
     }
 
-    // ============ INTERNAL LOGIC (Module 3 CEI Pattern) ============
+    // ============ INTERNAL FUNCTIONS ============
     
-    /// @notice Internal deposit with CEI pattern and single state access
-    /// @param token Token address (address(0) for ETH) 
-    /// @param amount Token amount in native decimals
-    /// @dev Implements Module 3 patterns: CEI, single storage reads, USD normalization
+    /**
+     * @notice Internal deposit logic implementing Checks-Effects-Interactions pattern
+     * @dev Validates deposit limits, updates state, and handles token transfers
+     * @dev Converts amounts to USD for unified balance tracking
+     * @param token Address of the token being deposited (NATIVE_TOKEN for ETH)
+     * @param amount Amount of tokens to deposit in native token decimals
+     */
     function _deposit(address token, uint256 amount) internal {
+        // CEI: Checks
         uint256 usdValue = convertToUSD(token, amount);
-        
-        // CHECKS (Module 3 CEI Pattern)
         if (usdValue < MIN_DEPOSIT_USD) revert ZeroAmount();
         
-        // Single state reads (Module 3 gas optimization)
+        // Verificar límite del banco
         uint256 currentTotalDeposited = totalDepositedUSD;
+        if (currentTotalDeposited + usdValue > BANK_CAP_USD) revert CapExceeded();
+        
+        // CEI: Effects
         uint256 currentUserBalance = userBalances[msg.sender][token];
         uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
         uint256 currentTotalDeposits = totalDeposits;
         
-        if (currentTotalDeposited + usdValue > BANK_CAP_USD) revert CapExceeded();
-        
-        // EFFECTS (Module 3 CEI Pattern - single writes)
         uint256 newUserBalance = currentUserBalance + usdValue;
         userBalances[msg.sender][token] = newUserBalance;
         userTotalBalanceUSD[msg.sender] = currentUserTotal + usdValue;
         totalDepositedUSD = currentTotalDeposited + usdValue;
         totalDeposits = currentTotalDeposits + 1;
         
-        // INTERACTIONS (Module 3 CEI Pattern)
         emit Deposit(msg.sender, token, amount, usdValue, newUserBalance);
     }
+
+
     
-    /// @notice Internal withdrawal with CEI pattern and single state access
-    /// @param token Token address (address(0) for ETH)
-    /// @param amount Token amount to withdraw in native decimals
-    /// @dev Implements Module 3 patterns: CEI, single storage reads, safe transfers
+    /**
+     * @notice Internal withdrawal logic implementing Checks-Effects-Interactions pattern
+     * @dev Validates withdrawal limits, updates state, and handles token transfers
+     * @dev Converts amounts to USD for limit validation and balance tracking
+     * @param token Address of the token being withdrawn (NATIVE_TOKEN for ETH)
+     * @param amount Amount of tokens to withdraw in native token decimals
+     */
     function _withdraw(address token, uint256 amount) internal {
+        // CEI: Checks
         uint256 usdValue = convertToUSD(token, amount);
-        
-        // CHECKS (Module 3 CEI Pattern)
         if (usdValue > WITHDRAWAL_LIMIT_USD) revert LimitExceeded();
         
-        // Single state reads (Module 3 gas optimization)
         uint256 currentUserBalance = userBalances[msg.sender][token];
+        if (usdValue > currentUserBalance) revert LowBalance();
+        
+        // CEI: Effects
         uint256 currentUserTotal = userTotalBalanceUSD[msg.sender];
         uint256 currentTotalDeposited = totalDepositedUSD;
         uint256 currentTotalWithdrawals = totalWithdrawals;
         
-        if (usdValue > currentUserBalance) revert LowBalance();
-        
-        // EFFECTS (Module 3 CEI Pattern - single writes)
         uint256 newUserBalance = currentUserBalance - usdValue;
         userBalances[msg.sender][token] = newUserBalance;
         userTotalBalanceUSD[msg.sender] = currentUserTotal - usdValue;
         totalDepositedUSD = currentTotalDeposited - usdValue;
         totalWithdrawals = currentTotalWithdrawals + 1;
         
-        // INTERACTIONS (Module 3 CEI Pattern - external calls last)
+        emit Withdrawal(msg.sender, token, amount, usdValue, newUserBalance);
+        
+        // CEI: Interactions
         if (token == NATIVE_TOKEN) {
             _safeTransferETH(msg.sender, amount);
         } else {
             IERC20(token).safeTransfer(msg.sender, amount);
         }
-        
-        emit Withdrawal(msg.sender, token, amount, usdValue, newUserBalance);
     }
+
+
     
-    /// @notice Safe ETH transfer function
-    /// @param to Recipient address
-    /// @param amount Amount to transfer
+    /**
+     * @notice Safely transfers ETH to a recipient address
+     * @dev Uses low-level call to handle transfer failures gracefully
+     * @dev Reverts with TransferFailed() if the transfer is unsuccessful
+     * @param to Recipient address to receive the ETH
+     * @param amount Amount of ETH to transfer in wei
+     */
     function _safeTransferETH(address to, uint256 amount) internal {
         (bool success, ) = payable(to).call{value: amount}("");
         if (!success) revert TransferFailed();
     }
     
-    /// @notice Receive function for direct ETH deposits (Module 3 pattern)
-    /// @dev Automatically converts received ETH to bank deposit
+    /**
+     * @notice Receive function for direct ETH deposits to the contract
+     * @dev Automatically processes ETH sent directly to the contract as a deposit
+     * @dev Calls depositETH() function to handle the deposit logic
+     * @dev Only processes deposits if msg.value > 0
+     */
     receive() external payable {
         if (msg.value > 0) {
             this.depositETH();
