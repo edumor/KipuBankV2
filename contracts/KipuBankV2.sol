@@ -236,6 +236,7 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @dev Converts ETH to USD using Chainlink oracle and updates user balance
      * @dev Emits Deposit event with normalized USD amount
      * @dev Requires non-zero msg.value and contract not paused
+     * @dev Typical gas usage: ~120,000-150,000 gas
      */
     function depositETH() 
         external 
@@ -251,6 +252,7 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @notice Deposits ERC-20 tokens into the bank
      * @dev Converts token amount to USD and updates user balance
      * @dev Requires prior token approval and token must be supported
+     * @dev Typical gas usage: ~150,000-180,000 gas
      * @param token Address of the ERC-20 token to deposit
      * @param amount Amount of tokens to deposit (in token's native decimals)
      */
@@ -299,6 +301,7 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @notice Withdraws ETH from the bank
      * @dev Validates withdrawal limits, updates balances, and transfers ETH
      * @dev Converts amount to USD for limit validation using current oracle price
+     * @dev Typical gas usage: ~100,000-130,000 gas
      * @param amount Amount of ETH to withdraw in wei
      */
     function withdrawETH(uint256 amount) 
@@ -314,6 +317,7 @@ contract KipuBankV2 is AccessControl, ReentrancyGuard {
      * @notice Withdraws ERC-20 tokens from the bank
      * @dev Validates withdrawal limits, updates balances, and transfers tokens safely
      * @dev Cannot be used to withdraw native ETH (use withdrawETH instead)
+     * @dev Typical gas usage: ~130,000-160,000 gas
      * @param token Address of the ERC-20 token to withdraw
      * @param amount Amount of tokens to withdraw (in token's native decimals)
      */
