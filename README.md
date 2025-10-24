@@ -130,34 +130,203 @@ constructor(uint256 _withdrawalLimitUSD, uint256 _bankCapUSD, address _ethUsdPri
 
 ### 🚨 **Events and Error Handling**
 
-#### **Custom Events:**
+**Utilizamos eventos y errores personalizados para mejorar la observabilidad y el debugging del sistema bancario.**
+
+#### **🔍 Custom Events - Trazabilidad Completa**
+
+#### **1. Deposit Event - Línea 280, 349**
 ```solidity
 event Deposit(address indexed user, address indexed token, uint256 amount, uint256 usdValue, uint256 newBalance);
+```
+
+**Dónde se usa:**
+- `depositETH()` - Línea 280: `emit Deposit(msg.sender, address(0), msg.value, usdValue, newETHBalance);`
+- `depositToken()` - Línea 349: `emit Deposit(msg.sender, token, amount, usdValue, newTokenBalance);`
+
+**Por qué es necesario:**
+- **Auditabilidad:** Registro inmutable de cada depósito con valor en USD
+- **Frontend Integration:** Permite actualizar interfaces en tiempo real
+- **Índices Optimizados:** `indexed user` y `indexed token` permiten filtros eficientes
+- **Monitoreo:** Sistemas externos pueden detectar depósitos grandes instantáneamente
+
+#### **2. Withdrawal Event - Línea 395, 464**
+```solidity
 event Withdrawal(address indexed user, address indexed token, uint256 amount, uint256 usdValue, uint256 newBalance);
+```
+
+**Dónde se usa:**
+- `withdrawETH()` - Línea 395: `emit Withdrawal(msg.sender, address(0), amount, usdValue, newETHBalance);`
+- `withdrawToken()` - Línea 464: `emit Withdrawal(msg.sender, token, amount, usdValue, newTokenBalance);`
+
+**Por qué es crítico:**
+- **Compliance Financiero:** Registro obligatorio para regulaciones
+- **Detección de Fraude:** Patrones anómalos de retiro son detectables
+- **Balance Tracking:** El `newBalance` permite verificar consistencia
+
+#### **3. TokenAdded Event - Línea 493**
+```solidity
 event TokenAdded(address indexed token, string symbol, uint8 decimals);
+```
+
+**Dónde se usa:**
+- `addToken()` - Línea 493: `emit TokenAdded(token, symbol, decimals);`
+
+**Por qué es esencial:**
+- **Configuración Dinámica:** Frontends detectan nuevos tokens automáticamente
+- **Seguridad:** Registro público de qué tokens están autorizados
+- **Integration:** Servicios externos saben qué tokens soportamos
+
+#### **4. TokenRemoved Event - Línea 502**
+```solidity
 event TokenRemoved(address indexed token);
+```
+
+**Dónde se usa:**
+- `removeToken()` - Línea 502: `emit TokenRemoved(token);`
+
+**Por qué es necesario:**
+- **Prevención de Errores:** Usuarios saben qué tokens ya no son válidos
+- **Cache Invalidation:** Sistemas limpian datos de tokens removidos
+
+#### **5. EmergencyPauseToggled Event - Línea 507, 512**
+```solidity
 event EmergencyPauseToggled(bool paused);
 ```
 
-**Purpose:** Complete operation traceability, auditing, and observability.
+**Dónde se usa:**
+- `emergencyPause()` - Línea 507: `emit EmergencyPauseToggled(true);`
+- `emergencyUnpause()` - Línea 512: `emit EmergencyPauseToggled(false);`
 
-#### **Custom Errors:**
+**Por qué es crítico:**
+- **Notificación Inmediata:** Todos los usuarios saben del estado de emergencia
+- **Transparencia:** Registro público de cuándo y por qué se pausó el sistema
+- **Automatización:** Bots pueden pausar operaciones automáticamente
+
+#### **⚠️ Custom Errors - Debugging Eficiente**
+
+#### **1. ZeroAmount() - Línea 269, 278, 338, etc.**
 ```solidity
-error ZeroAmount();           // Prevents operations with invalid amounts
-error TokenNotSupported();    // Unauthorized token
-error CapExceeded();         // Deposit limit exceeded
-error LimitExceeded();       // Withdrawal limit exceeded
-error LowBalance();          // Insufficient balance
-error TransferFailed();      // ETH transfer failure
-error Paused();              // Contract paused
-error BadPriceFeed();        // Invalid oracle price
-error StalePrice();          // Outdated price
+error ZeroAmount();
 ```
 
-**Advantages:**
-- **Gas Efficient:** Custom errors vs strings
-- **Clarity:** Specific for each failure case
-- **Debugging:** Precise problem identification
+**Dónde se usa:**
+- Modifier `validAmount()` - Línea 269: `if (amount == 0) revert ZeroAmount();`
+- Aplicado en TODAS las funciones de depósito y retiro
+
+**Por qué es mejor que require:**
+- **Gas Eficiente:** Ahorra ~50 gas vs require con string
+- **Específico:** Error inequívoco sobre el problema exacto
+
+#### **2. TokenNotSupported() - Línea 336, 426**
+```solidity
+error TokenNotSupported();
+```
+
+**Dónde se usa:**
+- `depositToken()` - Línea 336: `if (!supportedTokens[token].isSupported) revert TokenNotSupported();`
+- `withdrawToken()` - Línea 426: `if (!supportedTokens[token].isSupported) revert TokenNotSupported();`
+
+**Por qué es esencial:**
+- **Prevención de Pérdidas:** Evita depósitos de tokens no listados
+- **UX Clarity:** Usuario sabe exactamente por qué falló la transacción
+
+#### **3. CapExceeded() - Línea 282, 353**
+```solidity
+error CapExceeded();
+```
+
+**Dónde se usa:**
+- `depositETH()` - Línea 282: `if (totalDepositedUSD + usdValue > BANK_CAP_USD) revert CapExceeded();`
+- `depositToken()` - Línea 353: Similar validation
+
+**Por qué es crítico:**
+- **Risk Management:** Previene over-exposure del banco
+- **Regulatory Compliance:** Mantiene límites dentro de regulaciones
+
+#### **4. LimitExceeded() - Línea 383, 453**
+```solidity
+error LimitExceeded();
+```
+
+**Dónde se usa:**
+- `withdrawETH()` - Línea 383: `if (usdValue > WITHDRAWAL_LIMIT_USD) revert LimitExceeded();`
+- `withdrawToken()` - Línea 453: Similar validation
+
+**Por qué es necesario:**
+- **AML Compliance:** Previene lavado de dinero con retiros grandes
+- **Security:** Limita daño en caso de compromiso de cuentas
+
+#### **5. LowBalance() - Línea 387, 457**
+```solidity
+error LowBalance();
+```
+
+**Dónde se usa:**
+- `withdrawETH()` - Línea 387: `if (currentETHBalance < amount) revert LowBalance();`
+- `withdrawToken()` - Línea 457: Similar validation
+
+**Por qué es fundamental:**
+- **Consistency:** Evita balances negativos
+- **UX:** Error claro sobre fondos insuficientes
+
+#### **6. TransferFailed() - Línea 392**
+```solidity
+error TransferFailed();
+```
+
+**Dónde se usa:**
+- `withdrawETH()` - Línea 392: `if (!success) revert TransferFailed();`
+
+**Por qué es crítico:**
+- **Safety:** Detecta fallos en transferencias ETH
+- **Atomicity:** Revierte toda la operación si transfer falla
+
+#### **7. Paused() - Línea 264**
+```solidity
+error Paused();
+```
+
+**Dónde se usa:**
+- Modifier `whenNotPaused()` - Línea 264: `if (emergencyPaused) revert Paused();`
+
+**Por qué es esencial:**
+- **Emergency Response:** Bloquea operaciones durante crisis
+- **Clear Messaging:** Usuario sabe que sistema está pausado
+
+#### **8. BadPriceFeed() - Línea 542**
+```solidity
+error BadPriceFeed();
+```
+
+**Dónde se usa:**
+- `_getTokenPrice()` - Línea 542: `if (price <= 0) revert BadPriceFeed();`
+
+**Por qué es crítico:**
+- **Oracle Security:** Detecta feeds comprometidos o inválidos
+- **Financial Safety:** Evita conversiones USD erróneas
+
+#### **9. StalePrice() - Línea 539**
+```solidity
+error StalePrice();
+```
+
+**Dónde se usa:**
+- `_getTokenPrice()` - Línea 539: `if (block.timestamp - updatedAt > 3600) revert StalePrice();`
+
+**Por qué es fundamental:**
+- **Price Accuracy:** Evita usar precios desactualizados (>1 hora)
+- **MEV Protection:** Previene ataques con precios obsoletos
+
+#### **🎯 Ventajas del Sistema de Eventos y Errores:**
+
+1. **Gas Efficiency:** Custom errors ahorran ~50 gas vs require strings
+2. **Debugging Precision:** Cada error identifica el problema exacto
+3. **Frontend Integration:** Eventos permiten UIs reactivas
+4. **Audit Trail:** Registro completo de todas las operaciones
+5. **Monitoring:** Sistemas externos pueden reaccionar a eventos específicos
+6. **Compliance:** Trazabilidad completa para auditorías regulatorias
+
+**Resultado:** Sistema bancario completamente observable y debuggeable con overhead mínimo de gas.
 
 
 #### **Optimization Results:**
