@@ -93,6 +93,74 @@ This project represents the evolution of the original KipuBank contract into an 
 - Sepolia ETH from [sepoliafaucet.com](https://sepoliafaucet.com/) (minimum 0.02 ETH recommended)
 - Contract Address: `0x4b677233e4124640e309D6880ae66f7697b36674`
 
+## ⚠️ **CRITICAL: DECIMAL & PARAMETER HANDLING**
+
+### **🔢 Understanding Function Parameters**
+
+**KipuBankV2 uses different decimal systems for different operations:**
+
+#### **💰 DEPOSIT OPERATIONS**
+```solidity
+function depositETH() external payable
+```
+- **Parameter**: ETH sent via `msg.value` in **WEI** (18 decimals)
+- **Example**: To deposit 0.01 ETH → Send 0.01 in the value field
+- **Internal**: Contract automatically converts WEI to USD (6 decimals) using Chainlink oracle
+
+#### **💸 WITHDRAWAL OPERATIONS**  
+```solidity
+function withdrawETH(uint256 amount) external
+```
+- **Parameter**: `amount` in **WEI** (18 decimals) - NOT USD
+- **Critical**: This is the ETH amount you want to receive, NOT the USD value
+- **Example**: To withdraw $10 USD worth of ETH:
+  1. Get ETH price: `getPrice(0x0000000000000000000000000000000000000000)`
+  2. Calculate: $10 ÷ ETH_price = ETH_amount  
+  3. Convert to WEI: ETH_amount × 10^18
+  4. Use this WEI value as the `amount` parameter
+
+#### **📊 BALANCE & PRICE QUERIES**
+```solidity
+function getBalance(address user, address token) external view returns (uint256)
+```
+- **Returns**: Balance in **USD** (6 decimals)
+- **Example**: 10000000 = $10.00 USD
+
+```solidity
+function getPrice(address token) external view returns (uint256)
+```
+- **Returns**: Price in **USD** (8 decimals)  
+- **Example**: 395090750000 = $3,950.9075 USD per ETH
+
+### **🧮 DECIMAL CONVERSION EXAMPLES**
+
+#### **Example 1: Withdraw $10 USD when ETH = $3,950.9075**
+```
+1. ETH Price (8 decimals): 395,090,750,000
+2. USD Price: 395,090,750,000 ÷ 10^8 = $3,950.9075
+3. ETH Needed: $10 ÷ $3,950.9075 = 0.002531 ETH  
+4. WEI Amount: 0.002531 × 10^18 = 2,531,000,000,000,000
+
+✅ withdrawETH(2531000000000000)
+❌ withdrawETH(10000000) // This is wrong - would try to withdraw massive ETH amount
+```
+
+#### **Example 2: Verify Balance After Operations**
+```
+Before Deposit: getBalance() = 0
+After Deposit 0.01 ETH at $3,950.9075: getBalance() = 39509075 (≈$39.51 USD)
+After Withdraw $10: getBalance() = 29509075 (≈$29.51 USD)
+```
+
+### **⚡ QUICK REFERENCE TABLE**
+
+| Function | Parameter | Input Format | Example |
+|----------|-----------|--------------|---------|
+| `depositETH()` | msg.value | ETH (18 decimals) | 0.01 ETH |
+| `withdrawETH(amount)` | amount | **WEI (18 decimals)** | 2531000000000000 |
+| `getBalance()` | - | Returns USD (6 decimals) | 10000000 = $10 |
+| `getPrice()` | - | Returns USD (8 decimals) | 395090750000 = $3950.91 |
+
 ### **🔗 Step 1: Access Contract**
 1. Navigate to: https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674
 2. Click **"Contract"** tab
@@ -153,10 +221,19 @@ Function: owner()
 **3.2 Test ETH Deposit:**
 ```
 Function: depositETH()
-- Enter amount in ETH: 0.01 (for 0.01 ETH deposit)
+⚠️  Note: This is a payable function - no parameters needed
+
+- In the "depositETH" section, find the "Value" field (not a parameter field)
+- Enter amount to send: 0.01 (for 0.01 ETH deposit)
 - Click "Write" → Confirm in MetaMask
-- Wait ~15-30 seconds for confirmation
+- Wait ~15-30 seconds for confirmation  
 - Note the transaction hash
+
+The contract automatically:
+1. Receives your ETH (in WEI via msg.value)
+2. Gets current ETH/USD price from Chainlink oracle
+3. Converts to USD (6 decimals) for internal accounting
+4. Updates your balance in USD terms
 ```
 
 **3.3 Verify Deposit:**
@@ -169,9 +246,18 @@ Function: depositETH()
 
 **3.4 Test ETH Withdrawal:**
 ```
-Function: withdrawETH(uint256 usdAmount)
-- Calculate: If ETH = $2,500 and you want to withdraw $10:
-  Input: 10000000 (10 USD in 6 decimals)
+Function: withdrawETH(uint256 amount)
+⚠️  CRITICAL: amount parameter is in WEI (not USD)
+
+Step-by-step calculation for $10 USD withdrawal:
+1. Get current ETH price: getPrice(0x0000000000000000000000000000000000000000)
+   Example result: 395090750000 (= $3,950.9075 with 8 decimals)
+   
+2. Calculate ETH needed: $10 ÷ $3,950.9075 = 0.002531 ETH
+   
+3. Convert to WEI: 0.002531 × 10^18 = 2,531,000,000,000,000
+
+Input: 2531000000000000 (exact WEI amount, NOT USD)
 - Click "Write" → Confirm in MetaMask
 - Wait for confirmation
 ```
@@ -218,18 +304,25 @@ Function: unpause()
 
 **Typical Values You Should See:**
 ```
-ETH Price: ~250000000000 (≈$2,500 in 8 decimals)
+ETH Price: ~395090750000 (≈$3,950.91 in 8 decimals)
 Gas Usage: 
   - Deposit: ~120,000 gas
   - Withdrawal: ~100,000 gas
   - Admin functions: ~50,000 gas
 
-Balance Updates:
-  - Deposit 0.01 ETH at $2,500 = 25000000 (25 USD in 6 decimals)
-  - Withdrawal 10000000 = $10 worth of ETH returned
+Balance Updates (Example with ETH = $3,950.91):
+  - Deposit 0.01 ETH: getBalance() = 39509075 ($39.51 USD in 6 decimals)
+  - Withdraw $10 USD: withdrawETH(2531000000000000) // 2.531×10^15 WEI
+  - New balance: getBalance() = 29509075 ($29.51 USD in 6 decimals)
+
+Decimal Conversions:
+  - ETH (18 decimals) → USD (6 decimals) via oracle
+  - All withdrawETH parameters must be in WEI (18 decimals)
+  - All getBalance returns are in USD (6 decimals)
 
 Events Emitted:
-  - Complete transaction details with USD conversions
+  - KipuBankV2_Deposit: Shows both ETH (WEI) and USD amounts
+  - KipuBankV2_Withdrawal: Shows both ETH (WEI) and USD amounts  
   - Proper indexing for off-chain monitoring
 ```
 
@@ -242,6 +335,31 @@ Events Emitted:
 | `KipuBankV2_ContractPaused` | Contract paused | Wait for unpause or contact owner |
 | `KipuBankV2_BankCapExceeded` | Bank at capacity | Try smaller amount |
 | MetaMask connection fails | Wrong network | Switch to Sepolia Testnet |
+| **Tiny withdrawal received** | **Used USD value in withdrawETH** | **Use WEI calculation (see examples above)** |
+| **Massive withdrawal attempt** | **Used WEI value as USD** | **Convert USD to WEI first** |
+| Transaction reverts with no error | Gas limit too low | Increase gas limit in MetaMask |
+
+### **⚠️ CRITICAL WARNINGS**
+
+#### **❌ WRONG: Common Mistakes**
+```javascript
+// WRONG - Using USD decimals in withdrawETH
+withdrawETH(10000000)  // Trying to withdraw 10M ETH instead of $10 USD
+
+// WRONG - Using ETH decimals for USD calculations  
+10 USD ≠ 10000000000000000000 // This is 10 ETH, not $10
+```
+
+#### **✅ CORRECT: Proper Usage**
+```javascript
+// CORRECT - Calculate WEI amount for USD withdrawal
+1. getPrice(0x0000...) → 395090750000 (ETH price)
+2. Calculate: (10 × 10^18) ÷ 395090750000 × 10^8 = 2531000000000000 WEI
+3. withdrawETH(2531000000000000)
+
+// CORRECT - Direct ETH deposit
+depositETH() with msg.value = 0.01 ETH (in Etherscan value field)
+```
 
 ### **📝 Testing Checklist for Instructors**
 
