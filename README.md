@@ -12,11 +12,12 @@ This project represents the evolution of the original KipuBank contract into an 
 ## 📋 **DEPLOYED CONTRACT INFORMATION**
 
 - **Contract Address:** `0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B`
-- **Network:** Ethereum Mainnet/Testnet (Verified)
-- **Etherscan:** [View on Etherscan](https://etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B)
+- **Network:** Sepolia Testnet
+- **Etherscan:** [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B#code)
 - **Status:** ✅ Verified and Operational
 - **Author:** Eduardo Moreno - Ethereum Developers ETH_KIPU
 - **Deployment Date:** October 25, 2025
+- **ETH Price Feed:** `0x694AA1769357215DE4FAC081bf1f309aDC325306` (Chainlink Sepolia ETH/USD)
 
 ## 📚 **INSTRUCTOR GUIDE - KEY IMPLEMENTATIONS**
 
@@ -90,8 +91,8 @@ This project represents the evolution of the original KipuBank contract into an 
 ## 🚀 **STEP-BY-STEP ETHERSCAN EXECUTION GUIDE**
 
 ### **📋 Prerequisites**
-- MetaMask installed and configured for the appropriate network
-- Sufficient ETH for gas fees (minimum 0.02 ETH recommended)
+- MetaMask installed and configured for **Sepolia Testnet**
+- Sepolia ETH from [sepoliafaucet.com](https://sepoliafaucet.com/) (minimum 0.02 ETH recommended)
 - Contract Address: `0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B`
 
 ## ⚠️ **CRITICAL: DECIMAL & PARAMETER HANDLING**
@@ -163,7 +164,7 @@ After Withdraw $10: getBalance() = 29509075 (≈$29.51 USD)
 | `getPrice()` | - | Returns USD (8 decimals) | 395090750000 = $3950.91 |
 
 ### **🔗 Step 1: Access Contract**
-1. Navigate to: https://etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B
+1. Navigate to: https://sepolia.etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B#code
 2. Click **"Contract"** tab
 3. You'll see **"Read Contract"** and **"Write Contract"** sub-tabs
 
@@ -645,7 +646,7 @@ This project demonstrates mastery of:
 
 ### **🔗 Quick Access Links**
 
-- **Contract:** [0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B](https://etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B)
+- **Contract:** [0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B](https://sepolia.etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B#code)
 - **Read Contract:** Direct Etherscan interaction available
 - **Write Contract:** Connect wallet to interact
 - **Source Code:** Fully verified and readable
@@ -655,7 +656,7 @@ This project demonstrates mastery of:
 - **Developer:** Eduardo Moreno - Ethereum Developers ETH_KIPU
 - **Project Type:** Production-Ready Banking System
 - **Framework:** Ethereum Solidity 0.8.26
-- **Deployment:** Mainnet (Verified)
+- **Deployment:** Sepolia Testnet (Verified)
 - **License:** MIT
 - **Last Updated:** October 25, 2025
 
