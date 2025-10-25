@@ -1,153 +1,302 @@
-# KipuBankV2 - Enhanced Decentralized Banking System 🏦# KipuBankV2 - Enhanced Decentralized Banking System 🏦
+# KipuBankV2 - Enhanced Decentralized Banking System 🏦# KipuBankV2 - Enhanced Decentralized Banking System 🏦# KipuBankV2 - Enhanced Decentralized Banking System 🏦
 
 
 
-[![Solidity](https://img.shields.io/badge/Solidity-0.8.26-blue.svg)](https://soliditylang.org/)[![Solidity](https://img.shields.io/badge/Solidity-0.8.26-blue.svg)](https://soliditylang.org/)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.26-blue.svg)](https://soliditylang.org/)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[![OpenZeppelin](https://img.shields.io/badge/OpenZeppelin-v5.0.0-blue.svg)](https://openzeppelin.com/)[![Solidity](https://img.shields.io/badge/Solidity-0.8.26-blue.svg)](https://soliditylang.org/)[![Solidity](https://img.shields.io/badge/Solidity-0.8.26-blue.svg)](https://soliditylang.org/)
+
+[![Chainlink](https://img.shields.io/badge/Chainlink-Oracles-red.svg)](https://chain.link/)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## 🎯 **FINAL PROJECT MODULE 3 - ETHEREUM DEVELOPER PROGRAM**
+
 [![OpenZeppelin](https://img.shields.io/badge/OpenZeppelin-v5.0.0-blue.svg)](https://openzeppelin.com/)[![OpenZeppelin](https://img.shields.io/badge/OpenZeppelin-v5.0.0-blue.svg)](https://openzeppelin.com/)
+
+This project represents the evolution of the original KipuBank contract into an enterprise-ready production version, applying advanced Solidity techniques, security patterns, and smart contract architecture best practices.
 
 [![Chainlink](https://img.shields.io/badge/Chainlink-Oracles-red.svg)](https://chain.link/)[![Chainlink](https://img.shields.io/badge/Chainlink-Oracles-red.svg)](https://chain.link/)
 
+## 📋 **DEPLOYED CONTRACT INFORMATION**
 
 
-## 🎯 **FINAL PROJECT MODULE 3 - ETHEREUM DEVELOPER PROGRAM**## 🎯 **FINAL PROJECT MODULE 3 - ETHEREUM DEVELOPER PROGRAM**
 
+- **Contract Address:** `0x4b677233e4124640e309D6880ae66f7697b36674`
 
+- **Network:** Sepolia Testnet## 🎯 **FINAL PROJECT MODULE 3 - ETHEREUM DEVELOPER PROGRAM**## 🎯 **FINAL PROJECT MODULE 3 - ETHEREUM DEVELOPER PROGRAM**
+
+- **Etherscan:** [View on Etherscan](https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674)
+
+- **Status:** ✅ Verified and Operational
+
+- **ETH Price Feed:** `0x694AA1769357215DE4FAC081bf1f309aDC325306` (Chainlink Sepolia ETH/USD)
 
 This project represents the evolution of the original KipuBank contract into an enterprise-ready production version, applying advanced Solidity techniques, security patterns, and smart contract architecture best practices.This project represents the evolution of the original KipuBank contract into an enterprise-ready production version, applying advanced Solidity techniques, security patterns, and smart contract architecture best practices.
 
+## 📚 **INSTRUCTOR GUIDE - KEY IMPLEMENTATIONS**
 
+
+
+### **🔐 Administrative Roles & Access Control**
 
 ## 📚 **INSTRUCTOR GUIDE - KEY IMPLEMENTATIONS**## 📚 **INSTRUCTOR GUIDE - KEY IMPLEMENTATIONS**
 
-
-
-### **🔐 Administrative Roles & Access Control Implementation**### **🔐 Administrative Roles & Access Control Implementation**
+**Implementation:** OpenZeppelin's Ownable pattern (Line 21 in `/src/KipuBankV2.sol`)
 
 
 
-KipuBankV2 implements role-based access control using **OpenZeppelin's Ownable pattern** to ensure secure administrative operations:KipuBankV2 implements role-based access control using **OpenZeppelin's Ownable pattern** to ensure secure administrative operations:
+**Why Used:**
+
+- **Security**: Critical functions require privileged access### **🔐 Administrative Roles & Access Control Implementation**### **🔐 Administrative Roles & Access Control Implementation**
+
+- **Governance**: Centralized control for system parameters
+
+- **Maintenance**: Token management capabilities
 
 
+
+**Protected Functions:**KipuBankV2 implements role-based access control using **OpenZeppelin's Ownable pattern** to ensure secure administrative operations:KipuBankV2 implements role-based access control using **OpenZeppelin's Ownable pattern** to ensure secure administrative operations:
+
+- `addToken()` - Lines 301-314: Enables new ERC20 token support
+
+- `removeToken()` - Lines 320-330: Disables token support
+
+- `pause()/unpause()` - Lines 335-346: Emergency circuit breaker
 
 **Why We Use Administrative Roles:****Why We Use Administrative Roles:**
 
+### **📡 Events & Custom Error Handling**
+
 - **Security**: Critical functions like token management and emergency pauses require privileged access- **Security**: Critical functions like token management and emergency pauses require privileged access
 
-- **Governance**: Centralized control for system parameters and emergency responses- **Governance**: Centralized control for system parameters and emergency responses
+**Why Custom Events (Lines 91-108):**
 
-- **Maintenance**: Ability to add/remove supported tokens as the ecosystem evolves- **Maintenance**: Ability to add/remove supported tokens as the ecosystem evolves
+- **Transparency**: Off-chain monitoring of all operations- **Governance**: Centralized control for system parameters and emergency responses- **Governance**: Centralized control for system parameters and emergency responses
+
+- **Integration**: Easy front-end integration
+
+- **Gas Efficiency**: Cheaper than storage for historical data- **Maintenance**: Ability to add/remove supported tokens as the ecosystem evolves- **Maintenance**: Ability to add/remove supported tokens as the ecosystem evolves
 
 
 
-**Where Administrative Roles Are Applied:****Where Administrative Roles Are Applied:**
+**Why Custom Errors (Lines 111-123):**
+
+- **Gas Optimization**: ~50% less gas than require() strings
+
+- **Debugging**: Include relevant parameters for precise error tracking**Where Administrative Roles Are Applied:****Where Administrative Roles Are Applied:**
+
+- **Type Safety**: Prevent error message conflicts
 
 ```solidity```solidity
 
-contract KipuBankV2 is Ownable {contract KipuBankV2 is Ownable {
+**Key Examples:**
 
-    // Administrative functions protected by onlyOwner modifier    // Administrative functions protected by onlyOwner modifier
+- `KipuBankV2_Deposit` - Line 91: Complete transaction trackingcontract KipuBankV2 is Ownable {contract KipuBankV2 is Ownable {
 
-    function addToken(address token, address priceFeed, uint8 decimals) external onlyOwner    function addToken(address token, address priceFeed, uint8 decimals) external onlyOwner
+- `KipuBankV2_BankCapExceeded` - Line 115: Parametrized error with limits
 
-    function removeToken(address token) external onlyOwner      function removeToken(address token) external onlyOwner  
-
-    function pause() external onlyOwner    function pause() external onlyOwner
-
-    function unpause() external onlyOwner    function unpause() external onlyOwner
-
-}}
-
-``````
+- `KipuBankV2_OracleStalePrice` - Line 121: Oracle validation errors    // Administrative functions protected by onlyOwner modifier    // Administrative functions protected by onlyOwner modifier
 
 
+
+## 🚀 **STEP-BY-STEP ETHERSCAN EXECUTION GUIDE**    function addToken(address token, address priceFeed, uint8 decimals) external onlyOwner    function addToken(address token, address priceFeed, uint8 decimals) external onlyOwner
+
+
+
+### **Prerequisites**    function removeToken(address token) external onlyOwner      function removeToken(address token) external onlyOwner  
+
+- MetaMask connected to Sepolia Testnet
+
+- Sepolia ETH from [sepoliafaucet.com](https://sepoliafaucet.com/)    function pause() external onlyOwner    function pause() external onlyOwner
+
+
+
+### **Quick Test Sequence**    function unpause() external onlyOwner    function unpause() external onlyOwner
+
+1. **Access:** [Etherscan Contract Tab](https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674#code)
+
+2. **Read State:** `getBankInfo()`, `getPrice(address(0))`, `owner()`}}
+
+3. **Connect Wallet:** "Write Contract" → "Connect to Web3"
+
+4. **Test Deposit:** `depositETH()` with 0.01 ETH``````
+
+5. **Verify Balance:** `getBalance(YOUR_ADDRESS, address(0))`
+
+6. **Test Withdrawal:** `withdrawETH(5000000000000000)` (0.005 ETH)
+
+7. **Check Events:** Transaction → "Logs" section
 
 **Administrative Functions Purpose:****Administrative Functions Purpose:**
 
-- `addToken()`: Enables support for new ERC20 tokens with their Chainlink price feeds- `addToken()`: Enables support for new ERC20 tokens with their Chainlink price feeds
+### **Expected Results**
 
-- `removeToken()`: Disables support for tokens (security measure)- `removeToken()`: Disables support for tokens (security measure)
+- **Gas Usage:** ~100k-150k per transaction- `addToken()`: Enables support for new ERC20 tokens with their Chainlink price feeds- `addToken()`: Enables support for new ERC20 tokens with their Chainlink price feeds
+
+- **Events Emitted:** Deposit/Withdrawal with USD values
+
+- **Oracle Price:** Live ETH/USD rate (8 decimals)- `removeToken()`: Disables support for tokens (security measure)- `removeToken()`: Disables support for tokens (security measure)
+
+- **Access Control:** Admin functions fail for non-owners
 
 - `pause()/unpause()`: Emergency circuit breaker for system-wide operations- `pause()/unpause()`: Emergency circuit breaker for system-wide operations
 
+## 🏗️ **TECHNICAL ARCHITECTURE**
+
 - `transferOwnership()`: Governance transition capability (inherited from Ownable)- `transferOwnership()`: Governance transition capability (inherited from Ownable)
 
-
-
-### **📡 Events & Custom Error Handling Implementation**### **📡 Events & Custom Error Handling Implementation**
-
-
-
-KipuBankV2 implements comprehensive observability and debugging through custom events and errors:KipuBankV2 implements comprehensive observability and debugging through custom events and errors:
+### **Module 3 Deliverables Implementation**
 
 
 
-**Why We Use Custom Events:****Why We Use Custom Events:**
+| Requirement | Implementation | Code Reference |
 
-- **Transparency**: All critical operations emit detailed events for off-chain monitoring- **Transparency**: All critical operations emit detailed events for off-chain monitoring
+|-------------|----------------|----------------|### **📡 Events & Custom Error Handling Implementation**### **📡 Events & Custom Error Handling Implementation**
 
-- **Debugging**: Events provide transaction details without requiring storage reads- **Debugging**: Events provide transaction details without requiring storage reads
+| **Access Control** | OpenZeppelin Ownable | Line 21, Functions 301-346 |
 
-- **Integration**: Enables easy integration with front-ends and monitoring systems- **Integration**: Enables easy integration with front-ends and monitoring systems
+| **Type Declarations** | TokenConfig struct | Lines 28-32 |
 
-- **Gas Efficiency**: Events are cheaper than storage for historical data- **Gas Efficiency**: Events are cheaper than storage for historical data
+| **Chainlink Oracle** | AggregatorV3Interface | Lines 507-517 |
+
+| **Constant Variables** | 6 gas-optimized constants | Lines 38-51 |KipuBankV2 implements comprehensive observability and debugging through custom events and errors:KipuBankV2 implements comprehensive observability and debugging through custom events and errors:
+
+| **Nested Mappings** | User→Token→Balance | Line 75 |
+
+| **Decimal Conversion** | `_convertToUSD()` function | Lines 482-501 |
 
 
 
-**Events Implementation:****Events Implementation:**
+### **Key Enhancements Over Original KipuBank****Why We Use Custom Events:****Why We Use Custom Events:**
 
-```solidity```solidity
 
-// Deposit tracking with complete transaction details// Deposit tracking with complete transaction details
 
-event KipuBankV2_Deposit(event KipuBankV2_Deposit(
+#### **1. Multi-Token Support**- **Transparency**: All critical operations emit detailed events for off-chain monitoring- **Transparency**: All critical operations emit detailed events for off-chain monitoring
+
+- **Before:** ETH only
+
+- **After:** Configurable ERC20 tokens via `TokenConfig` struct (Lines 28-32)- **Debugging**: Events provide transaction details without requiring storage reads- **Debugging**: Events provide transaction details without requiring storage reads
+
+
+
+#### **2. USD-Based Accounting**- **Integration**: Enables easy integration with front-ends and monitoring systems- **Integration**: Enables easy integration with front-ends and monitoring systems
+
+- **Implementation:** All balances normalized to 6 decimals USD
+
+- **Benefit:** Universal compatibility with DeFi standards- **Gas Efficiency**: Events are cheaper than storage for historical data- **Gas Efficiency**: Events are cheaper than storage for historical data
+
+- **Logic:** `_convertToUSD()` handles different token decimals (Lines 482-501)
+
+
+
+#### **3. Oracle Integration**
+
+- **Price Feeds:** Chainlink AggregatorV3Interface (Line 16)**Events Implementation:****Events Implementation:**
+
+- **Validation:** Staleness check with 1-hour heartbeat (Line 50)
+
+- **Error Handling:** Custom errors for invalid/stale prices (Lines 121-122)```solidity```solidity
+
+
+
+#### **4. Gas Optimization**// Deposit tracking with complete transaction details// Deposit tracking with complete transaction details
+
+- **Pattern:** Single storage reads with memory caching
+
+- **Result:** ~30% gas reductionevent KipuBankV2_Deposit(event KipuBankV2_Deposit(
+
+- **Example:** Withdrawal functions cache storage variables (Lines 250-280)
 
     address indexed user,    address indexed user,
 
+## ⚙️ **SYSTEM CONFIGURATION**
+
     address indexed token,     address indexed token, 
 
-    uint256 amount,    uint256 amount,
+| Parameter | Value | Description |
 
-    uint256 valueUSD,    uint256 valueUSD,
+|-----------|-------|-------------|    uint256 amount,    uint256 amount,
+
+| **Withdrawal Limit** | $1,000 USD | Per-transaction maximum |
+
+| **Bank Capacity** | $100,000 USD | Total system limit |    uint256 valueUSD,    uint256 valueUSD,
+
+| **Oracle Heartbeat** | 3600 seconds | Price freshness threshold |
 
     uint256 newBalance    uint256 newBalance
 
-););
+### **Security Patterns Applied**
+
+- ✅ **Checks-Effects-Interactions**: Prevents reentrancy););
+
+- ✅ **Access Control**: Protected administrative functions
+
+- ✅ **Input Validation**: All parameters validated
+
+- ✅ **Emergency Pause**: System-wide circuit breaker
+
+- ✅ **Oracle Validation**: Price staleness and validity checks// Administrative actions for governance transparency// Administrative actions for governance transparency
 
 
 
-// Administrative actions for governance transparency// Administrative actions for governance transparency
-
-event KipuBankV2_TokenAdded(address indexed token, address indexed priceFeed);event KipuBankV2_TokenAdded(address indexed token, address indexed priceFeed);
-
-event KipuBankV2_Paused(address indexed by);event KipuBankV2_Paused(address indexed by);
-
-``````
+## 🛠️ **DEPLOYMENT SPECIFICATIONS**event KipuBankV2_TokenAdded(address indexed token, address indexed priceFeed);event KipuBankV2_TokenAdded(address indexed token, address indexed priceFeed);
 
 
 
-**Why We Use Custom Errors:****Why We Use Custom Errors:**
+### **Constructor Parameters**event KipuBankV2_Paused(address indexed by);event KipuBankV2_Paused(address indexed by);
 
-- **Gas Optimization**: Custom errors consume ~50% less gas than require() strings- **Gas Optimization**: Custom errors consume ~50% less gas than require() strings
+```solidity
 
-- **Detailed Information**: Errors include relevant parameters for debugging- **Detailed Information**: Errors include relevant parameters for debugging
+// Line 156-162 in /src/KipuBankV2.sol``````
 
-- **Type Safety**: Solidity 0.8+ custom errors prevent error message conflicts- **Type Safety**: Solidity 0.8+ custom errors prevent error message conflicts
+constructor(address initialOwner, address ethPriceFeed)
+
+
+
+// Sepolia Deployment Values:
+
+initialOwner: [DEPLOYER_ADDRESS]**Why We Use Custom Errors:****Why We Use Custom Errors:**
+
+ethPriceFeed: 0x694AA1769357215DE4FAC081bf1f309aDC325306
+
+```- **Gas Optimization**: Custom errors consume ~50% less gas than require() strings- **Gas Optimization**: Custom errors consume ~50% less gas than require() strings
+
+
+
+### **Technical Requirements**- **Detailed Information**: Errors include relevant parameters for debugging- **Detailed Information**: Errors include relevant parameters for debugging
+
+- **Solidity:** 0.8.26 with 200 optimization runs  
+
+- **Dependencies:** OpenZeppelin v5.0.0, Chainlink v0.8- **Type Safety**: Solidity 0.8+ custom errors prevent error message conflicts- **Type Safety**: Solidity 0.8+ custom errors prevent error message conflicts
+
+- **Gas:** ~2.5M for deployment
 
 - **Developer Experience**: Clear, descriptive error names improve debugging- **Developer Experience**: Clear, descriptive error names improve debugging
 
+---
 
+
+
+## 📝 **PROJECT INFORMATION**
 
 **Custom Errors Implementation:****Custom Errors Implementation:**
 
-```solidity```solidity
+**Developer:** Eduardo Moreno  
 
-error KipuBankV2_BankCapExceeded(uint256 requested, uint256 available);error KipuBankV2_BankCapExceeded(uint256 requested, uint256 available);
+**Program:** Ethereum Developer Program - Module 3  ```solidity```solidity
 
-error KipuBankV2_WithdrawalLimitExceeded(uint256 requested, uint256 limit);error KipuBankV2_WithdrawalLimitExceeded(uint256 requested, uint256 limit);
+**Date:** October 2025  
 
+**Status:** ✅ Production Ready  error KipuBankV2_BankCapExceeded(uint256 requested, uint256 available);error KipuBankV2_BankCapExceeded(uint256 requested, uint256 available);
+
+
+
+**Repository:** [https://github.com/edumor/KipuBankV2](https://github.com/edumor/KipuBankV2)  error KipuBankV2_WithdrawalLimitExceeded(uint256 requested, uint256 limit);error KipuBankV2_WithdrawalLimitExceeded(uint256 requested, uint256 limit);
+
+**Verified Contract:** [0x4b677233e4124640e309D6880ae66f7697b36674](https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674)
 error KipuBankV2_InsufficientBalance(uint256 requested, uint256 available);error KipuBankV2_InsufficientBalance(uint256 requested, uint256 available);
 
 error KipuBankV2_OracleStalePrice();error KipuBankV2_OracleStalePrice();
