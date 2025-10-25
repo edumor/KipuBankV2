@@ -216,7 +216,7 @@ This project demonstrates mastery of:
 
 ## 📞 **SUPPORT & CONTACT**
 
-- **Developer:** Eduardo Morales
+- **Developer:** Eduardo Moreno
 - **Project Type:** Academic/Educational
 - **Framework:** Ethereum Solidity
 - **Deployment:** Sepolia Testnet
