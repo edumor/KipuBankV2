@@ -21,17 +21,53 @@ This project represents the evolution of the original KipuBank contract into an 
 
 ### **🔐 Administrative Roles & Access Control**
 
-**Implementation:** OpenZeppelin's Ownable pattern (Line 21 in `/src/KipuBankV2.sol`)
+**Implementation:** OpenZeppelin's Ownable pattern (Line 26 in `/src/KipuBankV2.sol`)
 
-**Why Used:**
-- **Security**: Critical functions require privileged access
-- **Governance**: Centralized control for system parameters
-- **Maintenance**: Token management capabilities
+#### **Administrative Tools Used:**
 
-**Protected Functions:**
-- `addToken()` - Lines 301-314: Enables new ERC20 token support
-- `removeToken()` - Lines 320-330: Disables token support
-- `pause()/unpause()` - Lines 335-346: Emergency circuit breaker
+**1. Ownable Pattern (OpenZeppelin)**
+- **What:** Single-owner access control mechanism
+- **Why:** Provides secure, battle-tested administrative control
+- **Where:** `contract KipuBankV2 is Ownable` - Line 26
+- **Benefit:** Centralized governance with `onlyOwner` modifier protection
+
+**2. Custom Access Modifiers**
+- **`whenNotPaused()`** - Line 142: Prevents operations during emergency pause
+- **`validAmount()`** - Line 148: Ensures non-zero transaction amounts  
+- **`validAddress()`** - Line 154: Prevents zero-address operations
+- **Why:** Layer additional security checks on top of ownership
+
+**3. Circuit Breaker Pattern**
+- **Implementation:** `pause()/unpause()` functions with state variable `s_paused`
+- **Why:** Emergency stop mechanism for security incidents
+- **Trigger:** Only owner can activate during threats or maintenance
+
+#### **Protected Administrative Functions:**
+
+**Token Management:**
+- `addToken()` - Line 365: Add new ERC20 token support with price feed
+- `removeToken()` - Line 383: Disable token support (security measure)
+
+**Emergency Controls:**
+- `pause()` - Line 397: Halt all operations immediately
+- `unpause()` - Line 405: Resume normal operations
+
+**Governance:**
+- `transferOwnership()` - Inherited: Transfer admin rights to new address
+
+#### **Why These Administrative Tools:**
+
+**Security Rationale:**
+- **Token Management**: Only authorized admin can enable/disable tokens to prevent malicious token addition
+- **Emergency Pause**: Critical for responding to security vulnerabilities or oracle failures  
+- **Access Control**: Prevents unauthorized changes to system parameters and configuration
+- **Input Validation**: Custom modifiers catch invalid inputs before execution
+
+**Governance Benefits:**
+- **Centralized Control**: Single point of administrative decision-making
+- **Emergency Response**: Immediate reaction capability during incidents
+- **System Evolution**: Ability to add new tokens as ecosystem grows
+- **Maintenance**: Controlled updates and configuration changes
 
 ### **📡 Events & Custom Error Handling**
 
