@@ -373,72 +373,37 @@ The original KipuBank contract was a basic ETH-only banking system suitable for 
 
 ## 🏗️ **TECHNICAL ARCHITECTURE**
 
-### **🔐 Administrative Roles & Access Control**
+### **Module 3 Deliverables Implementation**
 
-**Implementation:** OpenZeppelin's Ownable pattern (Line 26 in `/src/KipuBankV2.sol`)
+| Requirement | Implementation | Code Reference |
+|-------------|----------------|----------------|
+| **Access Control** | OpenZeppelin Ownable | Line 26, Functions 365-405 |
+| **Type Declarations** | TokenConfig struct | Lines 32-37 |
+| **Chainlink Oracle** | AggregatorV3Interface | Lines 496-533 |
+| **Constant Variables** | 6 gas-optimized constants | Lines 44-59 |
+| **Nested Mappings** | User→Token→Balance | Line 82 |
+| **Decimal Conversion** | `_convertToUSD()` function | Lines 496-511 |
 
-#### **Administrative Tools Used:**
+### **Key Enhancements Over Original KipuBank**
 
-**1. Ownable Pattern (OpenZeppelin)**
-- **What:** Single-owner access control mechanism
-- **Why:** Provides secure, battle-tested administrative control
-- **Where:** `contract KipuBankV2 is Ownable` - Line 26
-- **Benefit:** Centralized governance with `onlyOwner` modifier protection
+#### **1. Multi-Token Support**
+- **Before:** ETH only
+- **After:** Configurable ERC20 tokens via `TokenConfig` struct (Lines 32-37)
 
-**2. Custom Access Modifiers**
-- **`whenNotPaused()`** - Line 142: Prevents operations during emergency pause
-- **`validAmount()`** - Line 148: Ensures non-zero transaction amounts  
-- **`validAddress()`** - Line 154: Prevents zero-address operations
-- **Why:** Layer additional security checks on top of ownership
+#### **2. USD-Based Accounting**
+- **Implementation:** All balances normalized to 6 decimals USD
+- **Benefit:** Universal compatibility with DeFi standards
+- **Logic:** `_convertToUSD()` handles different token decimals (Lines 496-511)
 
-**3. Circuit Breaker Pattern**
-- **Implementation:** `pause()/unpause()` functions with state variable `s_paused`
-- **Why:** Emergency stop mechanism for security incidents
-- **Trigger:** Only owner can activate during threats or maintenance
+#### **3. Oracle Integration**
+- **Price Feeds:** Chainlink AggregatorV3Interface (Line 11)
+- **Validation:** Staleness check with 1-hour heartbeat (Line 56)
+- **Security:** Price validation prevents manipulation attacks
 
-#### **Protected Administrative Functions:**
-
-**Token Management:**
-- `addToken()` - Line 365: Add new ERC20 token support with price feed
-- `removeToken()` - Line 383: Disable token support (security measure)
-
-**Emergency Controls:**
-- `pause()` - Line 397: Halt all operations immediately
-- `unpause()` - Line 405: Resume normal operations
-
-**Governance:**
-- `transferOwnership()` - Inherited: Transfer admin rights to new address
-
-#### **Why These Administrative Tools:**
-
-**Security Rationale:**
-- **Token Management**: Only authorized admin can enable/disable tokens to prevent malicious token addition
-- **Emergency Pause**: Critical for responding to security vulnerabilities or oracle failures  
-- **Access Control**: Prevents unauthorized changes to system parameters and configuration
-- **Input Validation**: Custom modifiers catch invalid inputs before execution
-
-**Governance Benefits:**
-- **Centralized Control**: Single point of administrative decision-making
-- **Emergency Response**: Immediate reaction capability during incidents
-- **System Evolution**: Ability to add new tokens as ecosystem grows
-- **Maintenance**: Controlled updates and configuration changes
-
-### **📡 Events & Custom Error Handling**
-
-**Why Custom Events (Lines 91-108):**
-- **Transparency**: Off-chain monitoring of all operations
-- **Integration**: Easy front-end integration
-- **Gas Efficiency**: Cheaper than storage for historical data
-
-**Why Custom Errors (Lines 111-123):**
-- **Gas Optimization**: ~50% less gas than require() strings
-- **Debugging**: Include relevant parameters for precise error tracking
-- **Type Safety**: Prevent error message conflicts
-
-**Key Examples:**
-- `KipuBankV2_Deposit` - Line 91: Complete transaction tracking
-- `KipuBankV2_BankCapExceeded` - Line 115: Parametrized error with limits
-- `KipuBankV2_OracleStalePrice` - Line 121: Oracle validation errors
+#### **4. Gas Optimization**
+- **Custom Errors:** 50% gas reduction vs string requires
+- **Constant Variables:** Compile-time optimization (Lines 44-59)
+- **Efficient Storage:** Packed structs and optimized mappings
 
 ## ⚙️ **SYSTEM CONFIGURATION**
 
