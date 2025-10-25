@@ -18,7 +18,7 @@ using SafeERC20 for IERC20;
 
 /**
  * @title KipuBankV2
- * @author Eduardo Moreno
+ * @author Eduardo Moreno - Ethereum Developers ETH_KIPU
  * @notice Enhanced banking system supporting multi-token deposits with USD limits
  * @dev Implements ERC20 support, Chainlink oracle integration, and role-based access
  * @custom:security-contact security@kipubank.com
@@ -184,7 +184,7 @@ contract KipuBankV2 is Ownable {
     
     /**
      * @notice Deposits native ETH into the bank
-     * @dev Converts ETH to USD using Chainlink oracle
+     * @dev Converts ETH to USD using Chainlink oracle. Uses msg.value (in wei) as deposit amount
      */
     function depositETH() external payable whenNotPaused validAmount(msg.value) {
         uint256 valueUSD = _convertToUSD(NATIVE_TOKEN, msg.value);
@@ -221,7 +221,8 @@ contract KipuBankV2 is Ownable {
     /**
      * @notice Deposits ERC20 tokens into the bank
      * @param token Address of the ERC20 token
-     * @param amount Amount of tokens to deposit
+     * @param amount Amount of tokens to deposit (in token's smallest unit, e.g., wei for WETH)
+     * @dev Converts token amount to USD using Chainlink oracle for internal accounting
      */
     function depositERC20(
         address token,
@@ -306,7 +307,8 @@ contract KipuBankV2 is Ownable {
     /**
      * @notice Withdraws ERC20 tokens from the bank
      * @param token Address of the ERC20 token
-     * @param amount Amount of tokens to withdraw
+     * @param amount Amount of tokens to withdraw (in token's smallest unit, e.g., wei for WETH)
+     * @dev Validates withdrawal limits and user balance before transferring tokens
      */
     function withdrawERC20(
         address token,
@@ -489,9 +491,10 @@ contract KipuBankV2 is Ownable {
     
     /**
      * @notice Converts token amount to USD value
-     * @param token Token address
-     * @param amount Amount in token decimals
+     * @param token Token address (use NATIVE_TOKEN for ETH)
+     * @param amount Amount in token's smallest unit (wei for ETH)
      * @return valueUSD Value in USD (6 decimals)
+     * @dev Normalizes different token decimals to 6-decimal USD representation
      */
     function _convertToUSD(
         address token,
@@ -533,7 +536,8 @@ contract KipuBankV2 is Ownable {
     /**
      * @notice Safely transfers ETH to an address
      * @param to Recipient address
-     * @param amount Amount to transfer
+     * @param amount Amount to transfer (in wei)
+     * @dev Uses call{value:} instead of transfer to avoid gas limit issues
      */
     function _safeTransferETH(address to, uint256 amount) internal {
         (bool success,) = payable(to).call{value: amount}("");
