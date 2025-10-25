@@ -9,7 +9,15 @@
 
 This project represents the evolution of the original KipuBank contract into an enterprise-ready production version, applying advanced Solidity techniques, security patterns, and smart contract architecture best practices.
 
-## 🏗️ **TECHNICAL ARCHITECTURE**
+## 📋 **DEPLOYED CONTRACT INFORMATION**
+
+- **Contract Address:** `0x4b677233e4124640e309D6880ae66f7697b36674`
+- **Network:** Sepolia Testnet
+- **Etherscan:** [View on Etherscan](https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674)
+- **Status:** ✅ Verified and Operational
+- **ETH Price Feed:** `0x694AA1769357215DE4FAC081bf1f309aDC325306` (Chainlink Sepolia ETH/USD)
+
+## 📚 **INSTRUCTOR GUIDE - KEY IMPLEMENTATIONS**
 
 ### **🔐 Administrative Roles & Access Control**
 
@@ -363,15 +371,7 @@ The original KipuBank contract was a basic ETH-only banking system suitable for 
 - **Con:** More complex internal architecture
 - **Result:** Future-proof design with clear upgrade paths
 
-## �📋 **DEPLOYED CONTRACT INFORMATION**
-
-- **Contract Address:** `0x4b677233e4124640e309D6880ae66f7697b36674`
-- **Network:** Sepolia Testnet
-- **Etherscan:** [View on Etherscan](https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674)
-- **Status:** ✅ Verified and Operational
-- **ETH Price Feed:** `0x694AA1769357215DE4FAC081bf1f309aDC325306` (Chainlink Sepolia ETH/USD)
-
-## 📚 **INSTRUCTOR GUIDE - KEY IMPLEMENTATIONS**
+## 🏗️ **TECHNICAL ARCHITECTURE**
 
 ### **🔐 Administrative Roles & Access Control**
 
@@ -439,216 +439,6 @@ The original KipuBank contract was a basic ETH-only banking system suitable for 
 - `KipuBankV2_Deposit` - Line 91: Complete transaction tracking
 - `KipuBankV2_BankCapExceeded` - Line 115: Parametrized error with limits
 - `KipuBankV2_OracleStalePrice` - Line 121: Oracle validation errors
-
-## 🚀 **STEP-BY-STEP ETHERSCAN EXECUTION GUIDE**
-
-### **📋 Prerequisites**
-- MetaMask installed and configured for Sepolia Testnet
-- Sepolia ETH from [sepoliafaucet.com](https://sepoliafaucet.com/) (minimum 0.02 ETH recommended)
-- Contract Address: `0x4b677233e4124640e309D6880ae66f7697b36674`
-
-### **🔗 Step 1: Access Contract**
-1. Navigate to: https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674
-2. Click **"Contract"** tab
-3. You'll see **"Read Contract"** and **"Write Contract"** sub-tabs
-
-### **📖 Step 2: Read Contract Functions (Testing Information Retrieval)**
-
-**2.1 Check Bank Status:**
-```
-Function: getBankInfo()
-- Click "getBankInfo" → "Query"
-- Returns 6 values:
-  * totalDepUSD: Total deposited in USD (6 decimals)
-  * totalDeps: Number of deposits made
-  * totalWiths: Number of withdrawals made
-  * bankCapUSD: Bank capacity limit (1,000,000 USD)
-  * withdrawLimitUSD: Withdrawal limit (10,000 USD)
-  * paused: Contract status (false=active, true=paused)
-```
-
-**2.2 Get Current ETH Price:**
-```
-Function: getPrice(address token)
-- Input: 0x0000000000000000000000000000000000000000
-- Click "Query"
-- Returns: ETH/USD price in 8 decimals (e.g., 250000000000 = $2,500)
-```
-
-**2.3 Verify Your Balance:**
-```
-Function: getBalance(address user, address token)
-- user: Your wallet address
-- token: 0x0000000000000000000000000000000000000000 (ETH)
-- Returns: Your balance in USD (6 decimals)
-```
-
-**2.4 Check Token Configuration:**
-```
-Function: getTokenConfig(address token)
-- Input: 0x0000000000000000000000000000000000000000
-- Returns: ETH support status and price feed info
-```
-
-**2.5 Verify Contract Owner:**
-```
-Function: owner()
-- Returns: Contract owner address
-```
-
-### **✍️ Step 3: Write Contract Functions (Testing Transactions)**
-
-**3.1 Connect MetaMask:**
-1. Click **"Write Contract"** tab
-2. Click **"Connect to Web3"**
-3. Select MetaMask and authorize connection
-4. Verify your address appears as connected
-
-**3.2 Test ETH Deposit:**
-```
-Function: depositETH()
-- Enter amount in ETH: 0.01 (for 0.01 ETH deposit)
-- Click "Write" → Confirm in MetaMask
-- Wait ~15-30 seconds for confirmation
-- Note the transaction hash
-```
-
-**3.3 Verify Deposit:**
-```
-- Return to "Read Contract"
-- Use getBalance() with your address
-- Should show your deposit in USD value
-- Use getBankInfo() to see updated totals
-```
-
-**3.4 Test ETH Withdrawal:**
-```
-Function: withdrawETH(uint256 usdAmount)
-- Calculate: If ETH = $2,500 and you want to withdraw $10:
-  Input: 10000000 (10 USD in 6 decimals)
-- Click "Write" → Confirm in MetaMask
-- Wait for confirmation
-```
-
-### **📊 Step 4: Verify Results and Events**
-
-**4.1 Check Transaction Events:**
-```
-- Click on transaction hash from deposits/withdrawals
-- Go to "Logs" tab
-- Look for events:
-  * KipuBankV2_Deposit: Shows ETH and USD amounts
-  * KipuBankV2_Withdrawal: Shows withdrawal details
-```
-
-**4.2 Verify Balance Changes:**
-```
-- Use getBalance() before and after operations
-- Use getBankInfo() to see bank totals update
-- Confirm USD conversions are accurate
-```
-
-### **🔐 Step 5: Administrative Functions Testing (Owner Only)**
-
-**⚠️ Note:** These functions only work if you're the contract owner.
-
-**5.1 Emergency Pause:**
-```
-Function: pause()
-- Click "Write" → Confirm transaction
-- Verify: getBankInfo() shows paused = true
-- Test: depositETH() should fail with "ContractPaused" error
-```
-
-**5.2 Resume Operations:**
-```
-Function: unpause()
-- Click "Write" → Confirm transaction
-- Verify: getBankInfo() shows paused = false
-- Test: Normal operations resume
-```
-
-### **📈 Expected Results & Validation**
-
-**Typical Values You Should See:**
-```
-ETH Price: ~250000000000 (≈$2,500 in 8 decimals)
-Gas Usage: 
-  - Deposit: ~120,000 gas
-  - Withdrawal: ~100,000 gas
-  - Admin functions: ~50,000 gas
-
-Balance Updates:
-  - Deposit 0.01 ETH at $2,500 = 25000000 (25 USD in 6 decimals)
-  - Withdrawal 10000000 = $10 worth of ETH returned
-
-Events Emitted:
-  - Complete transaction details with USD conversions
-  - Proper indexing for off-chain monitoring
-```
-
-### **🚨 Common Errors and Solutions**
-
-| Error | Cause | Solution |
-|-------|--------|----------|
-| `KipuBankV2_ZeroAmount` | Amount = 0 | Enter value > 0 |
-| `KipuBankV2_InsufficientBalance` | Not enough balance | Check balance first |
-| `KipuBankV2_ContractPaused` | Contract paused | Wait for unpause or contact owner |
-| `KipuBankV2_BankCapExceeded` | Bank at capacity | Try smaller amount |
-| MetaMask connection fails | Wrong network | Switch to Sepolia Testnet |
-
-### **📝 Testing Checklist for Instructors**
-
-**Complete Test Sequence (15-20 minutes):**
-- [ ] Read all contract information functions
-- [ ] Connect MetaMask to Sepolia
-- [ ] Perform ETH deposit (0.01 ETH recommended)
-- [ ] Verify balance update and USD conversion
-- [ ] Perform partial withdrawal ($5-10 USD)
-- [ ] Check transaction events and gas usage
-- [ ] Verify final balances and bank totals
-- [ ] Test error conditions (zero amounts, insufficient balance)
-- [ ] Document transaction hashes and results
-
-**Key Validation Points:**
-- ✅ Oracle price feed working (live ETH/USD rates)
-- ✅ USD conversion accuracy (18 decimals → 6 decimals)
-- ✅ Event emission with complete transaction details
-- ✅ Gas optimization (custom errors vs require strings)
-- ✅ Access control enforcement (admin functions)
-- ✅ Circuit breaker functionality (pause/unpause)
-
-### **Module 3 Deliverables Implementation**
-
-| Requirement | Implementation | Code Reference |
-|-------------|----------------|----------------|
-| **Access Control** | OpenZeppelin Ownable | Line 21, Functions 301-346 |
-| **Type Declarations** | TokenConfig struct | Lines 28-32 |
-| **Chainlink Oracle** | AggregatorV3Interface | Lines 507-517 |
-| **Constant Variables** | 6 gas-optimized constants | Lines 38-51 |
-| **Nested Mappings** | User→Token→Balance | Line 75 |
-| **Decimal Conversion** | `_convertToUSD()` function | Lines 482-501 |
-
-### **Key Enhancements Over Original KipuBank**
-
-#### **1. Multi-Token Support**
-- **Before:** ETH only
-- **After:** Configurable ERC20 tokens via `TokenConfig` struct (Lines 28-32)
-
-#### **2. USD-Based Accounting**
-- **Implementation:** All balances normalized to 6 decimals USD
-- **Benefit:** Universal compatibility with DeFi standards
-- **Logic:** `_convertToUSD()` handles different token decimals (Lines 482-501)
-
-#### **3. Oracle Integration**
-- **Price Feeds:** Chainlink AggregatorV3Interface (Line 16)
-- **Validation:** Staleness check with 1-hour heartbeat (Line 50)
-- **Security:** Price validation prevents manipulation attacks
-
-#### **4. Gas Optimization**
-- **Custom Errors:** 50% gas reduction vs string requires
-- **Constant Variables:** Compile-time optimization (Lines 38-51)
-- **Efficient Storage:** Packed structs and optimized mappings
 
 ## ⚙️ **SYSTEM CONFIGURATION**
 
