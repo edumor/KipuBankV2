@@ -88,24 +88,181 @@ This project represents the evolution of the original KipuBank contract into an 
 
 ## 🚀 **STEP-BY-STEP ETHERSCAN EXECUTION GUIDE**
 
-### **Prerequisites**
-- MetaMask connected to Sepolia Testnet
-- Sepolia ETH from [sepoliafaucet.com](https://sepoliafaucet.com/)
+### **📋 Prerequisites**
+- MetaMask installed and configured for Sepolia Testnet
+- Sepolia ETH from [sepoliafaucet.com](https://sepoliafaucet.com/) (minimum 0.02 ETH recommended)
+- Contract Address: `0x4b677233e4124640e309D6880ae66f7697b36674`
 
-### **Quick Test Sequence**
-1. **Access:** [Etherscan Contract Tab](https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674#code)
-2. **Read State:** `getBankInfo()`, `getPrice(address(0))`, `owner()`
-3. **Connect Wallet:** "Write Contract" → "Connect to Web3"
-4. **Test Deposit:** `depositETH()` with 0.01 ETH
-5. **Verify Balance:** `getBalance(YOUR_ADDRESS, address(0))`
-6. **Test Withdrawal:** `withdrawETH(5000000000000000)` (0.005 ETH)
-7. **Check Events:** Transaction → "Logs" section
+### **🔗 Step 1: Access Contract**
+1. Navigate to: https://sepolia.etherscan.io/address/0x4b677233e4124640e309D6880ae66f7697b36674
+2. Click **"Contract"** tab
+3. You'll see **"Read Contract"** and **"Write Contract"** sub-tabs
 
-### **Expected Results**
-- **Gas Usage:** ~100k-150k per transaction
-- **Events Emitted:** Deposit/Withdrawal with USD values
-- **Oracle Price:** Live ETH/USD rate (8 decimals)
-- **Access Control:** Admin functions fail for non-owners
+### **📖 Step 2: Read Contract Functions (Testing Information Retrieval)**
+
+**2.1 Check Bank Status:**
+```
+Function: getBankInfo()
+- Click "getBankInfo" → "Query"
+- Returns 6 values:
+  * totalDepUSD: Total deposited in USD (6 decimals)
+  * totalDeps: Number of deposits made
+  * totalWiths: Number of withdrawals made
+  * bankCapUSD: Bank capacity limit (1,000,000 USD)
+  * withdrawLimitUSD: Withdrawal limit (10,000 USD)
+  * paused: Contract status (false=active, true=paused)
+```
+
+**2.2 Get Current ETH Price:**
+```
+Function: getPrice(address token)
+- Input: 0x0000000000000000000000000000000000000000
+- Click "Query"
+- Returns: ETH/USD price in 8 decimals (e.g., 250000000000 = $2,500)
+```
+
+**2.3 Verify Your Balance:**
+```
+Function: getBalance(address user, address token)
+- user: Your wallet address
+- token: 0x0000000000000000000000000000000000000000 (ETH)
+- Returns: Your balance in USD (6 decimals)
+```
+
+**2.4 Check Token Configuration:**
+```
+Function: getTokenConfig(address token)
+- Input: 0x0000000000000000000000000000000000000000
+- Returns: ETH support status and price feed info
+```
+
+**2.5 Verify Contract Owner:**
+```
+Function: owner()
+- Returns: Contract owner address
+```
+
+### **✍️ Step 3: Write Contract Functions (Testing Transactions)**
+
+**3.1 Connect MetaMask:**
+1. Click **"Write Contract"** tab
+2. Click **"Connect to Web3"**
+3. Select MetaMask and authorize connection
+4. Verify your address appears as connected
+
+**3.2 Test ETH Deposit:**
+```
+Function: depositETH()
+- Enter amount in ETH: 0.01 (for 0.01 ETH deposit)
+- Click "Write" → Confirm in MetaMask
+- Wait ~15-30 seconds for confirmation
+- Note the transaction hash
+```
+
+**3.3 Verify Deposit:**
+```
+- Return to "Read Contract"
+- Use getBalance() with your address
+- Should show your deposit in USD value
+- Use getBankInfo() to see updated totals
+```
+
+**3.4 Test ETH Withdrawal:**
+```
+Function: withdrawETH(uint256 usdAmount)
+- Calculate: If ETH = $2,500 and you want to withdraw $10:
+  Input: 10000000 (10 USD in 6 decimals)
+- Click "Write" → Confirm in MetaMask
+- Wait for confirmation
+```
+
+### **📊 Step 4: Verify Results and Events**
+
+**4.1 Check Transaction Events:**
+```
+- Click on transaction hash from deposits/withdrawals
+- Go to "Logs" tab
+- Look for events:
+  * KipuBankV2_Deposit: Shows ETH and USD amounts
+  * KipuBankV2_Withdrawal: Shows withdrawal details
+```
+
+**4.2 Verify Balance Changes:**
+```
+- Use getBalance() before and after operations
+- Use getBankInfo() to see bank totals update
+- Confirm USD conversions are accurate
+```
+
+### **🔐 Step 5: Administrative Functions Testing (Owner Only)**
+
+**⚠️ Note:** These functions only work if you're the contract owner.
+
+**5.1 Emergency Pause:**
+```
+Function: pause()
+- Click "Write" → Confirm transaction
+- Verify: getBankInfo() shows paused = true
+- Test: depositETH() should fail with "ContractPaused" error
+```
+
+**5.2 Resume Operations:**
+```
+Function: unpause()
+- Click "Write" → Confirm transaction
+- Verify: getBankInfo() shows paused = false
+- Test: Normal operations resume
+```
+
+### **📈 Expected Results & Validation**
+
+**Typical Values You Should See:**
+```
+ETH Price: ~250000000000 (≈$2,500 in 8 decimals)
+Gas Usage: 
+  - Deposit: ~120,000 gas
+  - Withdrawal: ~100,000 gas
+  - Admin functions: ~50,000 gas
+
+Balance Updates:
+  - Deposit 0.01 ETH at $2,500 = 25000000 (25 USD in 6 decimals)
+  - Withdrawal 10000000 = $10 worth of ETH returned
+
+Events Emitted:
+  - Complete transaction details with USD conversions
+  - Proper indexing for off-chain monitoring
+```
+
+### **🚨 Common Errors and Solutions**
+
+| Error | Cause | Solution |
+|-------|--------|----------|
+| `KipuBankV2_ZeroAmount` | Amount = 0 | Enter value > 0 |
+| `KipuBankV2_InsufficientBalance` | Not enough balance | Check balance first |
+| `KipuBankV2_ContractPaused` | Contract paused | Wait for unpause or contact owner |
+| `KipuBankV2_BankCapExceeded` | Bank at capacity | Try smaller amount |
+| MetaMask connection fails | Wrong network | Switch to Sepolia Testnet |
+
+### **📝 Testing Checklist for Instructors**
+
+**Complete Test Sequence (15-20 minutes):**
+- [ ] Read all contract information functions
+- [ ] Connect MetaMask to Sepolia
+- [ ] Perform ETH deposit (0.01 ETH recommended)
+- [ ] Verify balance update and USD conversion
+- [ ] Perform partial withdrawal ($5-10 USD)
+- [ ] Check transaction events and gas usage
+- [ ] Verify final balances and bank totals
+- [ ] Test error conditions (zero amounts, insufficient balance)
+- [ ] Document transaction hashes and results
+
+**Key Validation Points:**
+- ✅ Oracle price feed working (live ETH/USD rates)
+- ✅ USD conversion accuracy (18 decimals → 6 decimals)
+- ✅ Event emission with complete transaction details
+- ✅ Gas optimization (custom errors vs require strings)
+- ✅ Access control enforcement (admin functions)
+- ✅ Circuit breaker functionality (pause/unpause)
 
 ## 🏗️ **TECHNICAL ARCHITECTURE**
 
