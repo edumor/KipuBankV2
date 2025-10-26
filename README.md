@@ -11,12 +11,12 @@ This project represents the evolution of the original KipuBank contract into an 
 
 ## 📋 **DEPLOYED CONTRACT INFORMATION**
 
-- **Contract Address:** `0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B`
+- **Contract Address:** `0x56C57BE2539F038BF85cf16442CC7c6B7Df72C79`
 - **Network:** Sepolia Testnet
-- **Etherscan:** [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B#code)
+- **Etherscan:** [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x56C57BE2539F038BF85cf16442CC7c6B7Df72C79#code)
 - **Status:** ✅ Verified and Operational
 - **Author:** Eduardo Moreno - Ethereum Developers ETH_KIPU
-- **Deployment Date:** October 25, 2025
+- **Deployment Date:** October 26, 2025
 - **ETH Price Feed:** `0x694AA1769357215DE4FAC081bf1f309aDC325306` (Chainlink Sepolia ETH/USD)
 
 ## 📚 **INSTRUCTOR GUIDE - KEY IMPLEMENTATIONS**
@@ -93,7 +93,7 @@ This project represents the evolution of the original KipuBank contract into an 
 ### **📋 Prerequisites**
 - MetaMask installed and configured for **Sepolia Testnet**
 - Sepolia ETH from [sepoliafaucet.com](https://sepoliafaucet.com/) (minimum 0.02 ETH recommended)
-- Contract Address: `0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B`
+- Contract Address: `0x56C57BE2539F038BF85cf16442CC7c6B7Df72C79`
 
 ## ⚠️ **CRITICAL: DECIMAL & PARAMETER HANDLING**
 
@@ -164,7 +164,7 @@ After Withdraw $10: getBalance() = 29509075 (≈$29.51 USD)
 | `getPrice()` | - | Returns USD (8 decimals) | 395090750000 = $3950.91 |
 
 ### **🔗 Step 1: Access Contract**
-1. Navigate to: https://sepolia.etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B#code
+1. Navigate to: https://sepolia.etherscan.io/address/0x56C57BE2539F038BF85cf16442CC7c6B7Df72C79#code
 2. Click **"Contract"** tab
 3. You'll see **"Read Contract"** and **"Write Contract"** sub-tabs
 
@@ -178,8 +178,8 @@ Function: getBankInfo()
   * totalDepUSD: Total deposited in USD (6 decimals)
   * totalDeps: Number of deposits made
   * totalWiths: Number of withdrawals made
-  * bankCapUSD: Bank capacity limit (1,000,000 USD)
-  * withdrawLimitUSD: Withdrawal limit (10,000 USD)
+  * bankCapUSD: Bank capacity limit (100,000 USD)
+  * withdrawLimitUSD: Withdrawal limit (1,000 USD)
   * paused: Contract status (false=active, true=paused)
 ```
 
@@ -548,15 +548,16 @@ struct TokenConfig {
 ### **Constructor Parameters**
 ```solidity
 constructor(
-    address _ethPriceFeed,    // 0x694AA1769357215DE4FAC081bf1f309aDC325306
-    uint256 _maxBankBalance   // 1000000000000 (1M USD in 6 decimals)
+    address initialOwner,     // Contract owner address
+    address ethPriceFeed      // 0x694AA1769357215DE4FAC081bf1f309aDC325306
 )
 ```
 
 ### **Initial State**
 - **ETH Support:** Automatically configured
 - **Oracle Feed:** Chainlink ETH/USD Sepolia
-- **Bank Capacity:** 1,000,000 USD maximum
+- **Bank Capacity:** 100,000 USD maximum
+- **Withdrawal Limit:** 1,000 USD per transaction
 - **Decimals:** 6-decimal USD normalization
 
 ## 🔒 **SECURITY CONSIDERATIONS**
@@ -646,7 +647,7 @@ This project demonstrates mastery of:
 
 ### **🔗 Quick Access Links**
 
-- **Contract:** [0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B](https://sepolia.etherscan.io/address/0x8Ced2b6CebeF93499DD82185E8DeCcD12B8E1F6B#code)
+- **Contract:** [0x56C57BE2539F038BF85cf16442CC7c6B7Df72C79](https://sepolia.etherscan.io/address/0x56C57BE2539F038BF85cf16442CC7c6B7Df72C79#code)
 - **Read Contract:** Direct Etherscan interaction available
 - **Write Contract:** Connect wallet to interact
 - **Source Code:** Fully verified and readable
@@ -658,7 +659,7 @@ This project demonstrates mastery of:
 - **Framework:** Ethereum Solidity 0.8.26
 - **Deployment:** Sepolia Testnet (Verified)
 - **License:** MIT
-- **Last Updated:** October 25, 2025
+- **Last Updated:** October 26, 2025
 
 ---
 

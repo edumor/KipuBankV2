@@ -184,15 +184,18 @@ contract KipuBankV2 is Ownable {
     
     /**
      * @notice Deposits native ETH into the bank
-     * @dev Converts ETH to USD using Chainlink oracle. Uses msg.value (in wei) as deposit amount
+     * @dev Converts ETH to USD using Chainlink oracle
      */
     function depositETH() external payable whenNotPaused validAmount(msg.value) {
         uint256 valueUSD = _convertToUSD(NATIVE_TOKEN, msg.value);
         
-        // Checks
+        // ✅ Cache all state variables at the beginning (1 SLOAD each)
         uint256 cachedTotalDeposited = s_totalDepositedUSD;
-        uint256 newTotalDeposited = cachedTotalDeposited + valueUSD;
+        uint256 cachedTotalDeposits = s_totalDeposits;
+        uint256 cachedUserBalance = s_balances[msg.sender][NATIVE_TOKEN];
         
+        // Checks
+        uint256 newTotalDeposited = cachedTotalDeposited + valueUSD;
         if (newTotalDeposited > BANK_CAP_USD) {
             revert KipuBankV2_BankCapExceeded(
                 valueUSD,
@@ -200,13 +203,14 @@ contract KipuBankV2 is Ownable {
             );
         }
         
-        // Effects
-        uint256 cachedUserBalance = s_balances[msg.sender][NATIVE_TOKEN];
+        // Effects - calculate new values in memory
         uint256 newUserBalance = cachedUserBalance + valueUSD;
+        uint256 newTotalDeposits = cachedTotalDeposits + 1;
         
+        // ✅ Write all state variables at the end (1 SSTORE each)
         s_balances[msg.sender][NATIVE_TOKEN] = newUserBalance;
         s_totalDepositedUSD = newTotalDeposited;
-        s_totalDeposits++;
+        s_totalDeposits = newTotalDeposits;
         
         // Interactions (events only, no external calls)
         emit KipuBankV2_Deposit(
@@ -221,8 +225,7 @@ contract KipuBankV2 is Ownable {
     /**
      * @notice Deposits ERC20 tokens into the bank
      * @param token Address of the ERC20 token
-     * @param amount Amount of tokens to deposit (in token's smallest unit, e.g., wei for WETH)
-     * @dev Converts token amount to USD using Chainlink oracle for internal accounting
+     * @param amount Amount of tokens to deposit
      */
     function depositERC20(
         address token,
@@ -234,9 +237,12 @@ contract KipuBankV2 is Ownable {
         
         uint256 valueUSD = _convertToUSD(token, amount);
         
+        // ✅ Cache all state variables at the beginning (1 SLOAD each)
         uint256 cachedTotalDeposited = s_totalDepositedUSD;
-        uint256 newTotalDeposited = cachedTotalDeposited + valueUSD;
+        uint256 cachedTotalDeposits = s_totalDeposits;
+        uint256 cachedUserBalance = s_balances[msg.sender][token];
         
+        uint256 newTotalDeposited = cachedTotalDeposited + valueUSD;
         if (newTotalDeposited > BANK_CAP_USD) {
             revert KipuBankV2_BankCapExceeded(
                 valueUSD,
@@ -244,13 +250,14 @@ contract KipuBankV2 is Ownable {
             );
         }
         
-        // Effects
-        uint256 cachedUserBalance = s_balances[msg.sender][token];
+        // Effects - calculate new values in memory
         uint256 newUserBalance = cachedUserBalance + valueUSD;
+        uint256 newTotalDeposits = cachedTotalDeposits + 1;
         
+        // ✅ Write all state variables at the end (1 SSTORE each)
         s_balances[msg.sender][token] = newUserBalance;
         s_totalDepositedUSD = newTotalDeposited;
-        s_totalDeposits++;
+        s_totalDeposits = newTotalDeposits;
         
         emit KipuBankV2_Deposit(
             msg.sender,
@@ -273,24 +280,29 @@ contract KipuBankV2 is Ownable {
     ) external whenNotPaused validAmount(amount) {
         uint256 valueUSD = _convertToUSD(NATIVE_TOKEN, amount);
         
+        // ✅ Cache all state variables at the beginning (1 SLOAD each)
+        uint256 cachedUserBalance = s_balances[msg.sender][NATIVE_TOKEN];
+        uint256 cachedTotalDeposited = s_totalDepositedUSD;
+        uint256 cachedTotalWithdrawals = s_totalWithdrawals;
+        
         // Checks
         if (valueUSD > WITHDRAWAL_LIMIT_USD) {
             revert KipuBankV2_WithdrawalLimitExceeded(valueUSD, WITHDRAWAL_LIMIT_USD);
         }
         
-        uint256 cachedUserBalance = s_balances[msg.sender][NATIVE_TOKEN];
         if (valueUSD > cachedUserBalance) {
             revert KipuBankV2_InsufficientBalance(valueUSD, cachedUserBalance);
         }
         
-        // Effects
+        // Effects - calculate new values in memory
         uint256 newUserBalance = cachedUserBalance - valueUSD;
-        uint256 cachedTotalDeposited = s_totalDepositedUSD;
-        uint256 cachedTotalWithdrawals = s_totalWithdrawals;
+        uint256 newTotalDeposited = cachedTotalDeposited - valueUSD;
+        uint256 newTotalWithdrawals = cachedTotalWithdrawals + 1;
         
+        // ✅ Write all state variables at the end (1 SSTORE each)
         s_balances[msg.sender][NATIVE_TOKEN] = newUserBalance;
-        s_totalDepositedUSD = cachedTotalDeposited - valueUSD;
-        s_totalWithdrawals = cachedTotalWithdrawals + 1;
+        s_totalDepositedUSD = newTotalDeposited;
+        s_totalWithdrawals = newTotalWithdrawals;
         
         emit KipuBankV2_Withdrawal(
             msg.sender,
@@ -307,8 +319,7 @@ contract KipuBankV2 is Ownable {
     /**
      * @notice Withdraws ERC20 tokens from the bank
      * @param token Address of the ERC20 token
-     * @param amount Amount of tokens to withdraw (in token's smallest unit, e.g., wei for WETH)
-     * @dev Validates withdrawal limits and user balance before transferring tokens
+     * @param amount Amount of tokens to withdraw
      */
     function withdrawERC20(
         address token,
@@ -320,23 +331,28 @@ contract KipuBankV2 is Ownable {
         
         uint256 valueUSD = _convertToUSD(token, amount);
         
+        // ✅ Cache all state variables at the beginning (1 SLOAD each)
+        uint256 cachedUserBalance = s_balances[msg.sender][token];
+        uint256 cachedTotalDeposited = s_totalDepositedUSD;
+        uint256 cachedTotalWithdrawals = s_totalWithdrawals;
+        
         if (valueUSD > WITHDRAWAL_LIMIT_USD) {
             revert KipuBankV2_WithdrawalLimitExceeded(valueUSD, WITHDRAWAL_LIMIT_USD);
         }
         
-        uint256 cachedUserBalance = s_balances[msg.sender][token];
         if (valueUSD > cachedUserBalance) {
             revert KipuBankV2_InsufficientBalance(valueUSD, cachedUserBalance);
         }
         
-        // Effects
+        // Effects - calculate new values in memory
         uint256 newUserBalance = cachedUserBalance - valueUSD;
-        uint256 cachedTotalDeposited = s_totalDepositedUSD;
-        uint256 cachedTotalWithdrawals = s_totalWithdrawals;
+        uint256 newTotalDeposited = cachedTotalDeposited - valueUSD;
+        uint256 newTotalWithdrawals = cachedTotalWithdrawals + 1;
         
+        // ✅ Write all state variables at the end (1 SSTORE each)
         s_balances[msg.sender][token] = newUserBalance;
-        s_totalDepositedUSD = cachedTotalDeposited - valueUSD;
-        s_totalWithdrawals = cachedTotalWithdrawals + 1;
+        s_totalDepositedUSD = newTotalDeposited;
+        s_totalWithdrawals = newTotalWithdrawals;
         
         emit KipuBankV2_Withdrawal(
             msg.sender,
@@ -492,9 +508,8 @@ contract KipuBankV2 is Ownable {
     /**
      * @notice Converts token amount to USD value
      * @param token Token address (use NATIVE_TOKEN for ETH)
-     * @param amount Amount in token's smallest unit (wei for ETH)
+     * @param amount Amount in token's smallest unit
      * @return valueUSD Value in USD (6 decimals)
-     * @dev Normalizes different token decimals to 6-decimal USD representation
      */
     function _convertToUSD(
         address token,
@@ -537,7 +552,6 @@ contract KipuBankV2 is Ownable {
      * @notice Safely transfers ETH to an address
      * @param to Recipient address
      * @param amount Amount to transfer (in wei)
-     * @dev Uses call{value:} instead of transfer to avoid gas limit issues
      */
     function _safeTransferETH(address to, uint256 amount) internal {
         (bool success,) = payable(to).call{value: amount}("");
